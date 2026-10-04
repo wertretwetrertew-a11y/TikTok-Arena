@@ -5,6 +5,7 @@ const fightersEl=document.getElementById("fighters");
 const timerEl=document.getElementById("timer");
 const connectionEl=document.getElementById("connection");
 const winnerEl=document.getElementById("winner");
+const fighterCountEl=document.querySelector(".fighter-count");
 const fighters=new Map();
 const colors=["#6f8cff","#ff668f","#64dfb0","#ffc857","#bd7cff","#55c7ff","#ff8c52","#c5e86c"];
 let running=false;
@@ -317,6 +318,7 @@ function escapeHtml(value){
 }
 
 function renderLeaderboard(){
+  if(fighterCountEl) fighterCountEl.textContent=String(fighters.size);
   fightersEl.innerHTML=Array.from(fighters.values())
     .sort(function(a,b){return b.kills-a.kills||b.hp-a.hp;})
     .map(function(f){
