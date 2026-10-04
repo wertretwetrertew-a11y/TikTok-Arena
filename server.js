@@ -4,16 +4,19 @@ import { Server } from "socket.io";
 import { WebcastPushConnection } from "tiktok-live-connector";
 import path from "path";
 import { fileURLToPath } from "url";
+import fs from "fs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 const PORT = process.env.PORT || 3000;
+const versionFile = path.join(__dirname, ".tiktok-arena-version");
+const buildVersion = fs.existsSync(versionFile) ? fs.readFileSync(versionFile,"utf8").trim().slice(0,7) : "dev";
 const connections = new Map();
 
 app.use(express.static(path.join(__dirname, "public")));
-app.get("/api/health", (_req,res) => res.json({ok:true,game:"TikTok Arena",version:"0.1.0"}));
+app.get("/api/health", (_req,res) => res.json({ok:true,game:"TikTok Arena",version:buildVersion}));
 
 function emitRoom(username,event,payload){ io.to(username).emit(event,payload); }
 
