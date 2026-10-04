@@ -13,7 +13,7 @@ let roundStartedAt=0;
 let lastFrame=performance.now();
 let seq=0;
 
-function makeFighter(user,hp,source,power=1){
+function makeFighter(user,hp,source,power=1,giftName=""){
   const id=user.uniqueId||user.nickname||("viewer-"+(++seq));
   if(fighters.has(id)){
     const f=fighters.get(id);
@@ -22,6 +22,7 @@ function makeFighter(user,hp,source,power=1){
       f.maxHp+=bonus;
       f.hp=Math.min(f.maxHp,f.hp+bonus);
       f.power+=Math.max(0,power-1)*0.35;
+      if(giftName) f.giftName=giftName;
     }
     return f;
   }
@@ -35,9 +36,10 @@ function makeFighter(user,hp,source,power=1){
     hp:hp,
     kills:0,
     source:source,
+    giftName:giftName||"",
     power:power,
-    x:70+Math.random()*760,
-    y:70+Math.random()*480,
+    x:85+Math.random()*730,
+    y:60+Math.random()*500,
     vx:(Math.random()-0.5)*70,
     vy:(Math.random()-0.5)*70,
     color:colors[fighters.size%colors.length],
@@ -61,7 +63,7 @@ function giftHp(value){
 }
 
 function handleGift(d){
-  makeFighter(d.user,giftHp(d.giftValue),"gift",Math.max(1,Math.sqrt(Math.max(1,d.giftValue))));
+  makeFighter(d.user,giftHp(d.giftValue),"gift",Math.max(1,Math.sqrt(Math.max(1,d.giftValue))),d.giftName||"Подарок");
 }
 
 function handleLike(d){
@@ -132,8 +134,8 @@ function startRound(){
     f.hp=f.maxHp;
     f.alive=true;
     f.kills=0;
-    f.x=70+Math.random()*760;
-    f.y=70+Math.random()*480;
+    f.x=85+Math.random()*730;
+    f.y=60+Math.random()*500;
     f.vx=(Math.random()-0.5)*70;
     f.vy=(Math.random()-0.5)*70;
   });
@@ -168,10 +170,10 @@ function update(dt){
     f.hitCooldown-=dt;
     f.x+=f.vx*dt;
     f.y+=f.vy*dt;
-    if(f.x<35||f.x>865) f.vx*=-1;
-    if(f.y<35||f.y>585) f.vy*=-1;
-    f.x=Math.max(35,Math.min(865,f.x));
-    f.y=Math.max(35,Math.min(585,f.y));
+    if(f.x<85||f.x>815) f.vx*=-1;
+    if(f.y<60||f.y>560) f.vy*=-1;
+    f.x=Math.max(85,Math.min(815,f.x));
+    f.y=Math.max(60,Math.min(560,f.y));
   });
 
   const alive=Array.from(fighters.values()).filter(function(f){return f.alive;});
@@ -287,7 +289,8 @@ function renderLeaderboard(){
     .map(function(f){
       const status=f.alive?'':' · Погиб';
       const hp=f.alive?(Math.ceil(f.hp)+'/'+f.maxHp):'0 HP';
-      return '<div class="fighter"><img class="avatar" src="'+escapeHtml(f.avatar)+'" alt=""><div><div class="name">'+escapeHtml(f.name)+'</div><div class="meta">⚔ '+f.kills+' киллов · '+escapeHtml(f.source)+status+'</div></div><div class="hp">'+hp+'</div></div>';
+      const source=f.source==="gift"?("🎁 "+escapeHtml(f.giftName||"Подарок")):f.source==="likes"?"❤️ 100 лайков":"⭐ Подписка";
+      return '<div class="fighter"><img class="avatar" src="'+escapeHtml(f.avatar)+'" alt=""><div><div class="name">'+escapeHtml(f.name)+'</div><div class="meta">⚔ '+f.kills+' киллов · '+source+status+'</div></div><div class="hp">'+hp+'</div></div>';
     }).join("");
 }
 
