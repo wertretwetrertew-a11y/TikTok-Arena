@@ -12,7 +12,7 @@ const server = http.createServer(app);
 const io = new Server(server);
 const PORT = process.env.PORT || 3000;
 const versionFile = path.join(__dirname, ".tiktok-arena-version");
-const buildVersion = fs.existsSync(versionFile) ? fs.readFileSync(versionFile,"utf8").trim().slice(0,7) : "dev";
+const buildVersion = process.env.BUILD_VERSION || (fs.existsSync(versionFile) ? fs.readFileSync(versionFile,"utf8").trim().slice(0,7) : "dev");
 const connections = new Map();
 
 app.use((req,res,next)=>{\n  res.setHeader("Cache-Control","no-store, no-cache, must-revalidate, proxy-revalidate");\n  res.setHeader("Pragma","no-cache");\n  res.setHeader("Expires","0");\n  next();\n});\napp.use(express.static(path.join(__dirname, "public"), { etag: false, lastModified: false, maxAge: 0 }));
