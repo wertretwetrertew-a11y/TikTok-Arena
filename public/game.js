@@ -1,9 +1,6 @@
 const socket=io();
 const canvas=document.getElementById("arena");
 const ctx=canvas.getContext("2d");
-const arenaBackground=new Image();
-arenaBackground.src="/arena-background.svg";
-arenaBackground.onload=function(){ draw(); };
 const fightersEl=document.getElementById("fighters");
 const timerEl=document.getElementById("timer");
 const connectionEl=document.getElementById("connection");
@@ -334,14 +331,15 @@ function update(dt){
 
 function draw(){
   ctx.clearRect(0,0,900,620);
-  if(arenaBackground.complete && arenaBackground.naturalWidth){
-    ctx.drawImage(arenaBackground,0,0,900,620);
-  }else{
-    const g=ctx.createRadialGradient(450,300,20,450,300,500);
-    g.addColorStop(0,"#17244b");
-    g.addColorStop(1,"#050817");
-    ctx.fillStyle=g;
-    ctx.fillRect(0,0,900,620);
+  const g=ctx.createRadialGradient(450,300,20,450,300,500);
+  g.addColorStop(0,"#17244b");
+  g.addColorStop(1,"#050817");
+  ctx.fillStyle=g;
+  ctx.fillRect(0,0,900,620);
+
+  for(let i=0;i<90;i++){
+    ctx.fillStyle="rgba(255,255,255,.35)";
+    ctx.fillRect((i*97)%900,(i*53)%620,1.5,1.5);
   }
 
   fighters.forEach(function(f){
