@@ -14,6 +14,8 @@ const PORT = process.env.PORT || 3000;
 const versionFile = path.join(__dirname, ".tiktok-arena-version");
 const buildVersion = process.env.BUILD_VERSION || (fs.existsSync(versionFile) ? fs.readFileSync(versionFile,"utf8").trim().slice(0,7) : "dev");
 const connections = new Map();
+const likeBuckets = new Map();
+const subscribedUsers = new Set();
 
 app.use((req,res,next)=>{
   res.setHeader("Cache-Control","no-store, no-cache, must-revalidate, proxy-revalidate");
@@ -84,11 +86,40 @@ async function connectTikTok(username){
   });
   connection.on(WebcastEvent.LIKE,data=>{
     const user=data.user||{};
-    emitRoom(key,"tiktok_like",{user:{uniqueId:user.uniqueId||data.uniqueId,nickname:user.nickname||data.nickname||user.uniqueId||data.uniqueId,profilePictureUrl:user.profilePictureUrl||data.profilePictureUrl||user.userDetails?.profilePictureUrls?.[0]||""},likeCount:Number(data.likeCount||0),totalLikeCount:Number(data.totalLikeCount||0),timestamp:Date.now()});
+    const uniqueId=user.uniqueId||data.uniqueId||user.userId||data.userId;
+    const nickname=user.nickname||data.nickname||uniqueId||"Зритель";
+    const profilePictureUrl=user.profilePictureUrl||data.profilePictureUrl||user.userDetails?.profilePictureUrls?.[0]||"";
+    const incoming=Math.max(0,Number(data.likeCount||0));
+    if(!uniqueId || incoming<=0) return;
+    const bucketKey=key+":"+uniqueId;
+    const total=(likeBuckets.get(bucketKey)||0)+incoming;
+    const fightersToSpawn=Math.floor(total/100);
+    likeBuckets.set(bucketKey,total%100);
+    for(let i=0;i<fightersToSpawn;i++){
+      emitRoom(key,"tiktok_like",{
+        user:{uniqueId,nickname,profilePictureUrl},
+        likeCount:100,
+        totalLikeCount:Number(data.totalLikeCount||0),
+        timestamp:Date.now()
+      });
+    }
   });
-  connection.on("subscribe",data=>{
+  const subscribeEvent=WebcastEvent.SUBSCRIBE||"subscribe";
+  connection.on(subscribeEvent,data=>{
     const user=data.user||{};
-    emitRoom(key,"tiktok_subscribe",{user:{uniqueId:user.uniqueId||data.uniqueId,nickname:user.nickname||data.nickname||user.uniqueId||data.uniqueId,profilePictureUrl:user.profilePictureUrl||data.profilePictureUrl||user.userDetails?.profilePictureUrls?.[0]||""},timestamp:Date.now()});
+    const uniqueId=user.uniqueId||data.uniqueId||user.userId||data.userId;
+    if(!uniqueId) return;
+    const userKey=key+":"+uniqueId;
+    if(subscribedUsers.has(userKey)) return;
+    subscribedUsers.add(userKey);
+    emitRoom(key,"tiktok_subscribe",{
+      user:{
+        uniqueId,
+        nickname:user.nickname||data.nickname||uniqueId,
+        profilePictureUrl:user.profilePictureUrl||data.profilePictureUrl||user.userDetails?.profilePictureUrls?.[0]||""
+      },
+      timestamp:Date.now()
+    });
   });
   connection.on("connected",()=>emitRoom(key,"tiktok_connected",{roomId:key,timestamp:Date.now()}));
   connection.on("disconnected",reason=>emitRoom(key,"tiktok_disconnected",{reason:String(reason||""),timestamp:Date.now()}));
