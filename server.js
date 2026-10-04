@@ -15,8 +15,8 @@ const versionFile = path.join(__dirname, ".tiktok-arena-version");
 const buildVersion = fs.existsSync(versionFile) ? fs.readFileSync(versionFile,"utf8").trim().slice(0,7) : "dev";
 const connections = new Map();
 
-app.use(express.static(path.join(__dirname, "public")));
-app.get("/api/health", (_req,res) => res.json({ok:true,game:"TikTok Arena",version:buildVersion}));
+app.use((req,res,next)=>{\n  res.setHeader("Cache-Control","no-store, no-cache, must-revalidate, proxy-revalidate");\n  res.setHeader("Pragma","no-cache");\n  res.setHeader("Expires","0");\n  next();\n});\napp.use(express.static(path.join(__dirname, "public"), { etag: false, lastModified: false, maxAge: 0 }));
+app.get("/api/health", (_req,res) => res.json({ok:true,game:"TikTok Arena",version:buildVersion,serverTime:Date.now()}));
 
 function emitRoom(username,event,payload){ io.to(username).emit(event,payload); }
 
