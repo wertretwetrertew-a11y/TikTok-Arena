@@ -8,7 +8,8 @@ const winnerEl=document.getElementById("winner");
 const fighters=new Map();
 const colors=["#6f8cff","#ff668f","#64dfb0","#ffc857","#bd7cff","#55c7ff","#ff8c52","#c5e86c"];
 let running=false;
-let timeLeft=60;
+const ROUND_DURATION_SECONDS=1800;
+let timeLeft=ROUND_DURATION_SECONDS;
 let roundStartedAt=0;
 let lastFrame=performance.now();
 let seq=0;
@@ -140,7 +141,7 @@ function startRound(){
     f.vy=(Math.random()-0.5)*70;
   });
   running=true;
-  timeLeft=60;
+  timeLeft=ROUND_DURATION_SECONDS;
   roundStartedAt=performance.now();
   winnerEl.classList.add("hidden");
 }
@@ -162,7 +163,7 @@ function finishRound(){
 
 function update(dt){
   if(!running) return;
-  timeLeft=Math.max(0,60-(performance.now()-roundStartedAt)/1000);
+  timeLeft=Math.max(0,ROUND_DURATION_SECONDS-(performance.now()-roundStartedAt)/1000);
   timerEl.textContent=Math.ceil(timeLeft);
 
   fighters.forEach(function(f){
