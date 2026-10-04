@@ -213,12 +213,6 @@ function update(dt){
     }
   }
 
-  // Remove defeated fighters from the active arena state after death.
-  Array.from(fighters.entries()).forEach(function(entry){
-    if(!entry[1].alive){
-      fighters.delete(entry[0]);
-    }
-  });
   const living=Array.from(fighters.values()).filter(function(f){return f.alive;}).length;
   if(timeLeft<=0||living<=1) finishRound();
   renderLeaderboard();
@@ -238,6 +232,7 @@ function draw(){
   }
 
   fighters.forEach(function(f){
+    if(!f.alive) return;
     ctx.save();
     ctx.globalAlpha=f.alive?1:0.22;
     ctx.beginPath();
@@ -290,7 +285,9 @@ function renderLeaderboard(){
   fightersEl.innerHTML=Array.from(fighters.values())
     .sort(function(a,b){return b.kills-a.kills||b.hp-a.hp;})
     .map(function(f){
-      return '<div class="fighter"><img class="avatar" src="'+escapeHtml(f.avatar)+'" alt=""><div><div class="name">'+escapeHtml(f.name)+'</div><div class="meta">⚔ '+f.kills+' киллов · '+escapeHtml(f.source)+'</div></div><div class="hp">'+Math.ceil(f.hp)+'/'+f.maxHp+'</div></div>';
+      const status=f.alive?'':' · Погиб';
+      const hp=f.alive?(Math.ceil(f.hp)+'/'+f.maxHp):'0 HP';
+      return '<div class="fighter"><img class="avatar" src="'+escapeHtml(f.avatar)+'" alt=""><div><div class="name">'+escapeHtml(f.name)+'</div><div class="meta">⚔ '+f.kills+' киллов · '+escapeHtml(f.source)+status+'</div></div><div class="hp">'+hp+'</div></div>';
     }).join("");
 }
 
