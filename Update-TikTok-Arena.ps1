@@ -14,65 +14,60 @@ Write-Host ""
 
 try {
   if (Test-Path $Temp) { Remove-Item $Temp -Recurse -Force -ErrorAction SilentlyContinue }
-  New-Item -ItemType Directory -Path $Temp | Out-Null
+  New-Item -ItemType Directory -Path $Temp -Force | Out-Null
 
-  $api = "https://api.github.com/repos/$Repo/commits/$Branch?cacheBust=$([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())"
-  Write-Host "Checking GitHub for updates..."
-  $remote = Invoke-RestMethod -Uri $api -UseBasicParsing
-  $remoteSha = $remote.sha
+  # Do not use the GitHub commits API here. Some Windows/PowerShell
+  # environments receive a 422 from that endpoint. The branch ZIP/raw
+  # endpoints are enough to update and start the game reliably.
+  $cacheBust = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+  $download = "https://github.com/$Repo/archive/refs/heads/$Branch.zip?cacheBust=$cacheBust"
 
-  $localShaFile = Join-Path $Root ".tiktok-arena-version"
-  $localSha = ""
-  if (Test-Path $localShaFile) { $localSha = (Get-Content $localShaFile -Raw).Trim() }
+  Write-Host "Downloading the latest game from GitHub..."
+  Invoke-WebRequest -Uri $download -OutFile $Zip -UseBasicParsing
 
-  if ($localSha -eq $remoteSha) {
-    Write-Host "Already up to date."
-  } else {
-    Write-Host "New version found: $($remoteSha.Substring(0,7))"
-    Write-Host "Downloading latest version..."
+  Expand-Archive -Path $Zip -DestinationPath $Extract -Force
+  $source = Join-Path $Extract "TikTok-Arena-$Branch"
 
-    $download = "https://github.com/$Repo/archive/refs/heads/$Branch.zip?cacheBust=$([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())"
-    Invoke-WebRequest -Uri $download -OutFile $Zip -UseBasicParsing
-
-    Expand-Archive -Path $Zip -DestinationPath $Extract -Force
-    $source = Join-Path $Extract "TikTok-Arena-$Branch"
-
-    Write-Host "Updating game files..."
-
-    Get-ChildItem -LiteralPath $source -Force | ForEach-Object {
-      if ($_.Name -ne ".git" -and $_.Name -ne "node_modules") {
-        Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $Root $_.Name) -Recurse -Force
-      }
-    }
-
-    Set-Content -LiteralPath $localShaFile -Value $remoteSha -NoNewline
-    Write-Host "Update installed."
+  if (-not (Test-Path $source)) {
+    throw "GitHub archive was downloaded, but the repository folder was not found."
   }
 
-  # Always refresh the critical server entrypoint from the exact GitHub commit,
-  # even when the local version marker incorrectly says the app is current.
-  $serverUrl = "https://raw.githubusercontent.com/$Repo/$remoteSha/server.js?cacheBust=$([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())"
+  Write-Host "Updating game files..."
+  Get-ChildItem -LiteralPath $source -Force | ForEach-Object {
+    if ($_.Name -ne ".git" -and $_.Name -ne "node_modules") {
+      Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $Root $_.Name) -Recurse -Force
+    }
+  }
+
+  # Always refresh the critical server entrypoint directly from GitHub.
+  # This avoids stale/corrupted local server.js files.
+  $serverUrl = "https://raw.githubusercontent.com/$Repo/$Branch/server.js?cacheBust=$([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())"
   Invoke-WebRequest -Uri $serverUrl -OutFile (Join-Path $Root "server.js") -UseBasicParsing
 
-  if (-not (Test-Path (Join-Path $Root "node_modules"))) {
-    Write-Host "Installing dependencies..."
-    Push-Location $Root
-    npm install
+  # Mark the local install as freshly updated without relying on the
+  # GitHub commits API.
+  $versionFile = Join-Path $Root ".tiktok-arena-version"
+  Set-Content -LiteralPath $versionFile -Value ("github-main-" + $cacheBust) -NoNewline
+
+  Write-Host "Update installed."
+
+  Write-Host ""
+  Write-Host "Installing/checking dependencies..."
+  Push-Location $Root
+  npm install
+  if ($LASTEXITCODE -ne 0) {
     Pop-Location
-  } elseif (Test-Path (Join-Path $Root "package.json")) {
-    Write-Host "Checking dependencies..."
-    Push-Location $Root
-    npm install
-    Pop-Location
+    throw "npm install failed with exit code $LASTEXITCODE."
   }
+  Pop-Location
 
   Write-Host ""
   Write-Host "Stopping old TikTok Arena server..." -ForegroundColor Yellow
   try {
     $lines = netstat -ano | Select-String ":3000"
     foreach ($line in $lines) {
-      $parts = ($line.ToString() -split "\s+") | Where-Object { $_ -ne "" }
-      if ($parts.Count -ge 5 -and $parts[-1] -match "^\d+$") {
+      $parts = ($line.ToString() -split "s+") | Where-Object { $_ -ne "" }
+      if ($parts.Count -ge 5 -and $parts[-1] -match "^d+$") {
         $pidToKill = [int]$parts[-1]
         if ($pidToKill -ne $PID) {
           taskkill /PID $pidToKill /F /T 2>$null | Out-Null
@@ -86,7 +81,7 @@ try {
   Write-Host "http://localhost:3000"
   Write-Host ""
 
-  $env:BUILD_VERSION = $remoteSha
+  $env:BUILD_VERSION = "github-main"
   $serverLogOut = Join-Path $Root "tiktok-arena-server.out.log"
   $serverLogErr = Join-Path $Root "tiktok-arena-server.err.log"
   if (Test-Path $serverLogOut) { Remove-Item $serverLogOut -Force -ErrorAction SilentlyContinue }
@@ -104,7 +99,7 @@ try {
     if ($serverProcess.HasExited) {
       $outText = if (Test-Path $serverLogOut) { Get-Content $serverLogOut -Raw -ErrorAction SilentlyContinue } else { "" }
       $errText = if (Test-Path $serverLogErr) { Get-Content $serverLogErr -Raw -ErrorAction SilentlyContinue } else { "" }
-      throw ("Node server stopped immediately. Exit code: " + $serverProcess.ExitCode + "[Environment]::NewLine[Environment]::NewLineSTDOUT:[Environment]::NewLine" + $outText + "[Environment]::NewLineSTDERR:[Environment]::NewLine" + $errText)
+      throw ("Node server stopped immediately. Exit code: " + $serverProcess.ExitCode + [Environment]::NewLine + [Environment]::NewLine + "STDOUT:" + [Environment]::NewLine + $outText + [Environment]::NewLine + "STDERR:" + [Environment]::NewLine + $errText)
     }
 
     try {
@@ -120,15 +115,13 @@ try {
   if (-not $ready) {
     $outText = if (Test-Path $serverLogOut) { Get-Content $serverLogOut -Raw -ErrorAction SilentlyContinue } else { "" }
     $errText = if (Test-Path $serverLogErr) { Get-Content $serverLogErr -Raw -ErrorAction SilentlyContinue } else { "" }
-    throw ("TikTok Arena server did not become ready at http://127.0.0.1:3000." + "[Environment]::NewLine[Environment]::NewLineSTDOUT:[Environment]::NewLine" + $outText + "[Environment]::NewLineSTDERR:[Environment]::NewLine" + $errText)
+    throw ("TikTok Arena server did not become ready at http://127.0.0.1:3000." + [Environment]::NewLine + [Environment]::NewLine + "STDOUT:" + [Environment]::NewLine + $outText + [Environment]::NewLine + "STDERR:" + [Environment]::NewLine + $errText)
   }
 
   Write-Host "Server is ready. Opening the updated game in your browser..."
   Start-Process "http://localhost:3000"
   Write-Host "TikTok Arena is running."
   Write-Host ""
-
-  # Keep the updater window available long enough to show the result.
   Start-Sleep -Seconds 2
 }
 catch {
@@ -136,7 +129,7 @@ catch {
   Write-Host "UPDATE/START ERROR:"
   Write-Host $_.Exception.Message -ForegroundColor Red
   Write-Host ""
-  Write-Host "Check your internet connection and that Node.js is installed."
+  Write-Host "The updater could not download/start TikTok Arena."
   Read-Host "Press Enter to close"
 }
 finally {
