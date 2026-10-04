@@ -181,15 +181,20 @@ function startRound(){
 
 function finishRound(){
   running=false;
-  const alive=Array.from(fighters.values()).filter(function(f){return f.alive;});
   const sorted=Array.from(fighters.values()).sort(function(a,b){
-    return b.kills-a.kills||b.hp-a.hp;
+    return b.kills-a.kills;
   });
-  const winner=alive.length===1?alive[0]:sorted[0];
-  if(winner){
-    winnerEl.textContent="🏆 ПОБЕДИТЕЛЬ — "+winner.name+" — "+winner.kills+" киллов";
-  }else{
+  const winner=sorted[0];
+  if(!winner){
     winnerEl.textContent="🏆 Нет победителя";
+  }else{
+    const topKills=winner.kills;
+    const tied=sorted.filter(function(f){return f.kills===topKills;});
+    if(tied.length>1){
+      winnerEl.textContent="🤝 НИЧЬЯ — по "+topKills+" киллов: "+tied.map(function(f){return f.name;}).join(", ");
+    }else{
+      winnerEl.textContent="🏆 ПОБЕДИТЕЛЬ — "+winner.name+" — "+winner.kills+" киллов";
+    }
   }
   winnerEl.classList.remove("hidden");
 }
@@ -286,8 +291,9 @@ function update(dt){
     }
   }
 
-  const living=Array.from(fighters.values()).filter(function(f){return f.alive;}).length;
-  if(timeLeft<=0||living<=1) finishRound();
+  // Раунд продолжается до конца таймера независимо от количества живых бойцов.
+  // Победитель определяется только по числу киллов после окончания времени.
+  if(timeLeft<=0) finishRound();
   renderLeaderboard();
 }
 
