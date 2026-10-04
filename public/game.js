@@ -18,13 +18,27 @@ function makeFighter(user,hp,source,power=1,giftName=""){
   const id=user.uniqueId||user.nickname||("viewer-"+(++seq));
   if(fighters.has(id)){
     const f=fighters.get(id);
-    if(source==="gift"){
-      const bonus=Math.max(0,hp-5);
-      f.maxHp+=bonus;
-      f.hp=Math.min(f.maxHp,f.hp+bonus);
-      f.power+=Math.max(0,power-1)*0.35;
+    if(source==="likes"){
+      const hundreds=Math.max(1,Math.floor(Number(hp||100)/100));
+      f.maxHp+=hundreds;
+      f.hp=Math.min(f.maxHp,f.hp+hundreds);
+      if(f.likesMilestone) f.likesMilestone+=hundreds;
+      else f.likesMilestone=hundreds;
+    }else if(source==="subscribe"){
+      f.maxHp+=3;
+      f.hp=Math.min(f.maxHp,f.hp+3);
+      f.power+=0.25;
+      f.subscribeBoost=true;
+    }else if(source==="gift"){
+      const diamonds=Math.max(1,Number(power||1));
+      const hpBonus=Math.max(1,Math.min(20,Math.floor(diamonds/5)));
+      const powerBonus=Math.min(2,diamonds/25);
+      f.maxHp+=hpBonus;
+      f.hp=Math.min(f.maxHp,f.hp+hpBonus);
+      f.power+=powerBonus;
       if(giftName) f.giftName=giftName;
     }
+    renderLeaderboard();
     return f;
   }
   const f={
@@ -45,7 +59,9 @@ function makeFighter(user,hp,source,power=1,giftName=""){
     vy:(Math.random()-0.5)*70,
     color:colors[fighters.size%colors.length],
     hitCooldown:0,
-    alive:true
+    alive:true,
+    likesMilestone:0,
+    subscribeBoost:false
   };
   fighters.set(id,f);
   if(f.avatar){
@@ -59,17 +75,24 @@ function makeFighter(user,hp,source,power=1,giftName=""){
 }
 
 function giftHp(value){
-  const v=Math.max(1,Number(value||1));
-  return Math.max(5,Math.min(35,Math.round(5+Math.sqrt(v)*2)));
+  return 5;
 }
 
 function handleGift(d){
-  makeFighter(d.user,giftHp(d.giftValue),"gift",Math.max(1,Math.sqrt(Math.max(1,d.giftValue))),d.giftName||"Подарок");
+  const diamonds=Math.max(1,Number(d.giftValue||1));
+  const id=d.user.uniqueId||d.user.nickname;
+  if(fighters.has(id)){
+    makeFighter(d.user,5,"gift",diamonds,d.giftName||"Подарок");
+  }else{
+    makeFighter(d.user,5,"gift",diamonds,d.giftName||"Подарок");
+  }
 }
 
 function handleLike(d){
-  if(Number(d.likeCount||0)>=100){
-    makeFighter(d.user,3,"likes");
+  const likeCount=Math.max(0,Number(d.likeCount||0));
+  const milestones=Math.floor(likeCount/100);
+  if(milestones>0){
+    makeFighter(d.user,milestones*100,"likes");
   }
 }
 
