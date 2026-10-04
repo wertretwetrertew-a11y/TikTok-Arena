@@ -2,6 +2,7 @@ import express from "express";
 import http from "http";
 import { Server } from "socket.io";
 import { TikTokLiveConnection, WebcastEvent, ControlEvent } from "tiktok-live-connector";
+import { TikTokLiveClient, EventType as PirateEventType } from "piratetok-live-js";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
@@ -18,6 +19,8 @@ const likeBuckets = new Map();
 const subscribedUsers = new Set();
 const likeTotals = new Map();
 const likeUsers = new Map();
+const likeConnections = new Map();
+const LIKE_MILESTONE = 100;
 
 app.use((req,res,next)=>{
   res.setHeader("Cache-Control","no-store, no-cache, must-revalidate, proxy-revalidate");
@@ -70,6 +73,52 @@ function emitLikeLeaderboard(username){
   });
 }
 
+
+async function connectTikTokLikes(username){
+  const key=String(username).replace(/^@/,"").trim().toLowerCase();
+  if(!key || likeConnections.has(key)) return;
+  const client=new TikTokLiveClient(key);
+  client.on(PirateEventType.like,data=>{
+    const user=data?.user||{};
+    const uniqueId=String(user.uniqueId ?? user.userId ?? data?.uniqueId ?? data?.userId ?? "").trim();
+    const nickname=String(user.nickname ?? data?.nickname ?? uniqueId ?? "Зритель");
+    const profilePictureUrl=
+      user.profilePictureUrl ||
+      data?.profilePictureUrl ||
+      user.avatar?.urls?.[0] ||
+      user.avatar?.urlList?.[0] ||
+      "";
+    const incoming=Math.max(0,Number(data?.count ?? data?.likeCount ?? data?.likes ?? 0)||0);
+    const total=Number(data?.total ?? data?.totalLikeCount ?? data?.total_like_count ?? 0)||0;
+    if(!uniqueId || incoming<=0) return;
+    const bucketKey=key+":"+uniqueId;
+    const previousTotal=likeTotals.get(bucketKey)||0;
+    const newTotal=previousTotal+incoming;
+    likeTotals.set(bucketKey,newTotal);
+    likeBuckets.set(bucketKey,newTotal%LIKE_MILESTONE);
+    likeUsers.set(bucketKey,{nickname,profilePictureUrl});
+    emitLikeLeaderboard(key);
+    console.log("[TikTok Arena] LIKE (PirateTok)",{username:key,uniqueId,nickname,likeCount:incoming,totalLikeCount:total});
+    const previousHundreds=Math.floor(previousTotal/LIKE_MILESTONE);
+    const newHundreds=Math.floor(newTotal/LIKE_MILESTONE);
+    const newMilestones=newHundreds-previousHundreds;
+    if(newMilestones>0){
+      emitRoom(key,"tiktok_like",{
+        user:{uniqueId,nickname,profilePictureUrl},
+        likeCount:newMilestones*LIKE_MILESTONE,
+        totalLikeCount:newTotal,
+        timestamp:Date.now()
+      });
+    }
+  });
+  client.on("error",error=>{
+    console.log("[TikTok Arena] PirateTok LIKE error",error?.message||String(error));
+    emitRoom(key,"tiktok_error",{message:"Like connection: "+(error?.message||String(error)),timestamp:Date.now()});
+  });
+  await client.connect();
+  likeConnections.set(key,client);
+  console.log("[TikTok Arena] PirateTok LIKE connected",key);
+}
 
 async function connectTikTok(username){
   const key=String(username).replace(/^@/,"").trim().toLowerCase();
@@ -181,16 +230,10 @@ async function connectTikTok(username){
     return true;
   }
 
+  // LIKE is handled by the free PirateTok connector below.
+  // Keep the legacy listener as a fallback when the old connector emits it.
   connection.on(WebcastEvent.LIKE,data=>{
     processLikeEvent(data,"LIKE");
-  });
-
-  // Fallback: the connector exposes every decoded protobuf message through
-  // ControlEvent.DECODED_DATA. This catches like messages even if the high-level
-  // LIKE event is not emitted correctly by the current TikTok payload.
-  connection.on(ControlEvent.DECODED_DATA,(event,decodedData)=>{
-    const eventName=String(event||"").toLowerCase();
-    if(eventName.includes("like")) processLikeEvent(decodedData,"decodedData:"+event);
   });
 
   const subscribeEvent=WebcastEvent.SUBSCRIBE||"subscribe";
@@ -223,8 +266,18 @@ io.on("connection",socket=>{
     if(!key) return socket.emit("tiktok_error",{message:"Введите TikTok username"});
     socket.join(key);
     emitLikeLeaderboard(key);
-    try { await connectTikTok(key); socket.emit("tiktok_status",{connected:true,username:key}); }
-    catch(error){ socket.emit("tiktok_error",{message:error?.message||String(error)}); }
+    let likeConnected=false;
+    try { await connectTikTokLikes(key); likeConnected=true; }
+    catch(error){
+      console.log("[TikTok Arena] PirateTok LIKE connect failed",error?.message||String(error));
+      socket.emit("tiktok_error",{message:"Like connection: "+(error?.message||String(error))});
+    }
+    try { await connectTikTok(key); }
+    catch(error){
+      console.log("[TikTok Arena] Legacy TikTok connector failed",error?.message||String(error));
+      if(!likeConnected) socket.emit("tiktok_error",{message:error?.message||String(error)});
+    }
+    if(likeConnected) socket.emit("tiktok_status",{connected:true,username:key,likes:true});
   });
 });
 
