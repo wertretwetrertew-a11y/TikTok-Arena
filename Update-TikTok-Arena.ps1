@@ -62,13 +62,36 @@ try {
   }
 
   Write-Host ""
-  Write-Host "Starting TikTok Arena..."
+  Write-Host "Starting TikTok Arena server..."
   Write-Host "http://localhost:3000"
   Write-Host ""
 
-  Push-Location $Root
-  npm start
-  Pop-Location
+  $serverProcess = Start-Process -FilePath "cmd.exe" -ArgumentList "/c","npm start" -WorkingDirectory $Root -WindowStyle Normal -PassThru
+
+  Write-Host "Waiting for the server to become ready..."
+  $ready = $false
+  for ($i = 0; $i -lt 30; $i++) {
+    Start-Sleep -Seconds 1
+    try {
+      $response = Invoke-WebRequest -Uri "http://localhost:3000/api/health" -UseBasicParsing -TimeoutSec 2
+      if ($response.StatusCode -eq 200) {
+        $ready = $true
+        break
+      }
+    } catch {}
+  }
+
+  if (-not $ready) {
+    throw "TikTok Arena server did not become ready at http://localhost:3000"
+  }
+
+  Write-Host "Server is ready. Opening the updated game in your browser..."
+  Start-Process "http://localhost:3000"
+  Write-Host "TikTok Arena is running."
+  Write-Host ""
+
+  # Keep the updater window available long enough to show the result.
+  Start-Sleep -Seconds 2
 }
 catch {
   Write-Host ""
