@@ -69,7 +69,7 @@ function draw(){
   }
 }
 function renderLeaderboard(){fightersEl.innerHTML=[...fighters.values()].sort((a,b)=>b.kills-a.kills||b.hp-a.hp).map(f=>'<div class="fighter"><img class="avatar" src="'+escapeAttr(f.avatar)+'" alt=""><div><div class="name">'+escapeHtml(f.name)+'</div><div class="meta">⚔ '+f.kills+' киллов · '+f.source+'</div></div><div class="hp">'+Math.ceil(f.hp)+'/'+f.maxHp+'</div></div>').join("");}
-function escapeHtml(v){return String(v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",""":"&quot;","'":"&#039;"}[c]));}
+function escapeHtml(v){return String(v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[c]));}
 function escapeAttr(v){return escapeHtml(v).replace(/\`/g,"");}
 function frame(now){const dt=Math.min(.05,(now-lastFrame)/1000);lastFrame=now;update(dt);draw();requestAnimationFrame(frame);}
 renderLeaderboard();requestAnimationFrame(frame);
