@@ -37,3 +37,5 @@ button{border-color:#29365e;background:#0d1529;transition:.16s ease;box-shadow:0
 .winner{padding:25px 36px;border-radius:20px;background:rgba(9,13,28,.94);border:1px solid #6578ff;box-shadow:0 20px 70px rgba(0,0,0,.5),0 0 50px rgba(100,110,255,.14);font-size:25px}
 @media(max-width:900px){.app{width:96vw}.layout{grid-template-columns:1fr}.leaderboard{max-height:260px}.round-clock{margin:0}.demo-controls{width:100%}}
 @media(max-width:700px){.gift-list{grid-template-columns:repeat(2,minmax(0,1fr))}.topbar{gap:10px}.controls{width:100%}.stream-input{flex:1}.stream-input input{width:100%}}
+
+.round-select{display:flex;align-items:center;gap:6px;padding:0 2px}.round-select span{color:#7f8eaf;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px}.round-select select{border:1px solid #303b66;border-radius:10px;background:#11182c;color:#fff;padding:11px 28px 11px 12px;font-weight:700;cursor:pointer}
