@@ -18,8 +18,9 @@ if errorlevel 1 (
 )
 
 set "UPDATER=%TEMP%\TikTok-Arena-Updater-Latest.ps1"
+set "CACHE=%RANDOM%%RANDOM%"
 echo Downloading the latest updater from GitHub...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/wertretwetrertew-a11y/TikTok-Arena/main/Update-TikTok-Arena.ps1' -OutFile '%UPDATER%' -UseBasicParsing"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$u='https://raw.githubusercontent.com/wertretwetrertew-a11y/TikTok-Arena/main/Update-TikTok-Arena.ps1?cacheBust=%CACHE%'; Invoke-WebRequest -Uri $u -Headers @{'Cache-Control'='no-cache';'Pragma'='no-cache'} -OutFile '%UPDATER%' -UseBasicParsing"
 if errorlevel 1 (
   echo Failed to download the latest updater.
   echo.
