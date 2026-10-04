@@ -24,6 +24,25 @@ app.use((req,res,next)=>{
 app.use(express.static(path.join(__dirname, "public"), { etag: false, lastModified: false, maxAge: 0 }));
 app.get("/api/health", (_req,res) => res.json({ok:true,game:"TikTok Arena",version:buildVersion,serverTime:Date.now()}));
 
+app.get("/api/avatar", async (req,res) => {
+  try {
+    const rawUrl=String(req.query.url||"");
+    const url=new URL(rawUrl);
+    const host=url.hostname.toLowerCase();
+    if(!(host==="tiktokcdn.com" || host.endsWith(".tiktokcdn.com"))) return res.status(400).end();
+    const response=await fetch(url,{headers:{"User-Agent":"Mozilla/5.0 TikTok Arena"}});
+    if(!response.ok) return res.status(response.status).end();
+    const contentType=response.headers.get("content-type")||"image/jpeg";
+    if(!contentType.startsWith("image/")) return res.status(415).end();
+    const buffer=Buffer.from(await response.arrayBuffer());
+    res.setHeader("Content-Type",contentType);
+    res.setHeader("Cache-Control","public, max-age=3600");
+    res.send(buffer);
+  } catch {
+    res.status(400).end();
+  }
+});
+
 function emitRoom(username,event,payload){ io.to(username).emit(event,payload); }
 
 async function connectTikTok(username){
