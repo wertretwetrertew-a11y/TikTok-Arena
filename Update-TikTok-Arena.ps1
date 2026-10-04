@@ -77,7 +77,7 @@ try {
   Write-Host "http://localhost:3000"
   Write-Host ""
 
-  $serverProcess = Start-Process -FilePath "cmd.exe" -ArgumentList "/c","npm start" -WorkingDirectory $Root -WindowStyle Normal -PassThru
+  $serverProcess = Start-Process -FilePath "cmd.exe" -ArgumentList "/c","set BUILD_VERSION=$remoteSha&& npm start" -WorkingDirectory $Root -WindowStyle Normal -PassThru
 
   Write-Host "Waiting for the server to become ready..."
   $ready = $false
