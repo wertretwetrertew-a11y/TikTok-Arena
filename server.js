@@ -48,7 +48,8 @@ app.get("/api/avatar", async (req,res) => {
 });
 
 function emitRoom(username,event,payload){ io.to(username).emit(event,payload); }
-\nfunction emitLikeLeaderboard(username){
+
+function emitLikeLeaderboard(username){
   const rows=[];
   const prefix=username+":";
   likeTotals.forEach((total,bucketKey)=>{
