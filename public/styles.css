@@ -39,3 +39,19 @@ button{border-color:#29365e;background:#0d1529;transition:.16s ease;box-shadow:0
 @media(max-width:700px){.gift-list{grid-template-columns:repeat(2,minmax(0,1fr))}.topbar{gap:10px}.controls{width:100%}.stream-input{flex:1}.stream-input input{width:100%}}
 
 .round-select{display:flex;align-items:center;gap:6px;padding:0 2px}.round-select span{color:#7f8eaf;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px}.round-select select{border:1px solid #303b66;border-radius:10px;background:#11182c;color:#fff;padding:11px 28px 11px 12px;font-weight:700;cursor:pointer}
+
+/* TOP LIKES LEADERBOARD */
+.leaderboard{display:flex;flex-direction:column;gap:14px}
+.board-section{min-width:0}
+.fighters-board{padding-bottom:12px;border-bottom:1px solid #1c2948}
+.likes-board{min-height:0}
+.like-count-label{min-width:38px;height:24px;padding:0 8px;border:1px solid #2a3961;border-radius:8px;display:grid;place-items:center;color:#82efab;background:#0d1729;font-weight:800;font-size:9px;letter-spacing:.8px}
+.like-row{display:grid;grid-template-columns:22px 34px minmax(0,1fr) auto;gap:8px;align-items:center;padding:7px 8px;margin:5px 0;border:1px solid #182542;background:linear-gradient(90deg,#0e1629,#0b1324);border-radius:10px}
+.like-row:first-child{border-color:#465a91;background:linear-gradient(90deg,#121d36,#0d1528)}
+.like-rank{font-size:11px;font-weight:900;color:#7788ad;text-align:center}
+.like-rank.top{color:#ffd76a}
+.like-row .avatar{width:32px;height:32px;border:1px solid rgba(255,255,255,.28)}
+.like-name{min-width:0;font-size:11px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.like-value{font-size:11px;font-weight:900;color:#ff719f;white-space:nowrap}
+.empty-likes{padding:12px 8px;border:1px dashed #202e50;border-radius:10px;color:#607092;text-align:center;font-size:10px}
+@media(max-width:900px){.leaderboard{display:block}.likes-board{margin-top:12px}}
