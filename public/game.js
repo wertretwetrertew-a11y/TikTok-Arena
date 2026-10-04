@@ -18,6 +18,10 @@ let seq=0;
 const BASE_FIGHTER_HP=5;
 const LIKE_MILESTONE=100;
 const SUBSCRIBE_HP_BONUS=3;
+const COLLISION_RADIUS=46;
+const SEEK_RADIUS=520;
+const SEEK_STRENGTH=34;
+const FIGHTER_SPEED=62;
 
 function giftHp(value){
   const diamonds=Math.max(1,Number(value||1));
@@ -198,6 +202,39 @@ function update(dt){
   fighters.forEach(function(f){
     if(!f.alive) return;
     f.hitCooldown-=dt;
+
+    // Бойцы постоянно ищут ближайшего противника, поэтому встречи происходят чаще.
+    let nearest=null;
+    let nearestDistance=Infinity;
+    fighters.forEach(function(other){
+      if(other===f||!other.alive) return;
+      const dx=other.x-f.x;
+      const dy=other.y-f.y;
+      const distance=Math.hypot(dx,dy);
+      if(distance<nearestDistance&&distance<SEEK_RADIUS){
+        nearest=other;
+        nearestDistance=distance;
+      }
+    });
+    if(nearest){
+      const dx=nearest.x-f.x;
+      const dy=nearest.y-f.y;
+      const distance=Math.max(1,Math.hypot(dx,dy));
+      const steer=Math.min(SEEK_STRENGTH,SEEK_STRENGTH*(1-distance/SEEK_RADIUS));
+      f.vx+=(dx/distance)*steer*dt;
+      f.vy+=(dy/distance)*steer*dt;
+    }
+
+    const speed=Math.hypot(f.vx,f.vy);
+    if(speed>FIGHTER_SPEED){
+      f.vx=f.vx/speed*FIGHTER_SPEED;
+      f.vy=f.vy/speed*FIGHTER_SPEED;
+    }else if(speed<28){
+      const angle=Math.random()*Math.PI*2;
+      f.vx+=Math.cos(angle)*8*dt;
+      f.vy+=Math.sin(angle)*8*dt;
+    }
+
     f.x+=f.vx*dt;
     f.y+=f.vy*dt;
     if(f.x<85||f.x>815) f.vx*=-1;
@@ -214,7 +251,7 @@ function update(dt){
       const dx=b.x-a.x;
       const dy=b.y-a.y;
       const d=Math.hypot(dx,dy);
-      if(d<46){
+      if(d<COLLISION_RADIUS){
         if(d>0){
           const nx=dx/d;
           const ny=dy/d;
