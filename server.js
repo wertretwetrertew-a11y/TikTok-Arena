@@ -109,21 +109,62 @@ async function connectTikTok(username){
     });
   });
   connection.on(WebcastEvent.LIKE,data=>{
-    const user=data.user||{};
-    const uniqueId=user.uniqueId||data.uniqueId||user.userId||data.userId;
-    const nickname=user.nickname||data.nickname||uniqueId||"Зритель";
-    const profilePictureUrl=user.profilePictureUrl||data.profilePictureUrl||user.userDetails?.profilePictureUrls?.[0]||"";
-    const incoming=Math.max(0,Number(data.likeCount||0));
-    if(!uniqueId || incoming<=0) return;
+    // TikTok-Live-Connector normally exposes likeCount and the viewer in data.user.
+    // Keep fallbacks for connector payload variants so the leaderboard does not silently ignore events.
+    const user=data?.user||data?.viewer||{};
+    const uniqueId=String(
+      user.uniqueId ??
+      data?.uniqueId ??
+      user.userId ??
+      data?.userId ??
+      user.id ??
+      data?.user?.user_id ??
+      ""
+    ).trim();
+    const nickname=String(
+      user.nickname ??
+      data?.nickname ??
+      user.displayName ??
+      uniqueId ??
+      "Зритель"
+    );
+    const profilePictureUrl=
+      user.profilePictureUrl ||
+      data?.profilePictureUrl ||
+      user.userDetails?.profilePictureUrls?.[0] ||
+      user.profilePicture?.urlList?.[0] ||
+      "";
+
+    const rawLikeCount=data?.likeCount ?? data?.like_count ?? data?.likes ?? data?.like?.likeCount ?? 0;
+    const incoming=Math.max(0,Number(rawLikeCount)||0);
+
+    // Leave a server-side trace while testing the real LIVE pipeline.
+    console.log("[TikTok Arena] LIKE",{
+      username:key,
+      uniqueId,
+      nickname,
+      likeCount:incoming,
+      totalLikeCount:Number(data?.totalLikeCount ?? data?.total_like_count ?? 0)||0
+    });
+
+    if(!uniqueId || incoming<=0){
+      console.log("[TikTok Arena] LIKE ignored: missing user or likeCount");
+      return;
+    }
+
     const bucketKey=key+":"+uniqueId;
     const previousTotal=likeTotals.get(bucketKey)||0;
     const newTotal=previousTotal+incoming;
     const previousHundreds=Math.floor(previousTotal/100);
     const newHundreds=Math.floor(newTotal/100);
+
     likeTotals.set(bucketKey,newTotal);
     likeBuckets.set(bucketKey,newTotal%100);
     likeUsers.set(bucketKey,{nickname,profilePictureUrl});
+
+    // Update Top Likes immediately for every LIKE event, not only at 100-like milestones.
     emitLikeLeaderboard(key);
+
     const newMilestones=newHundreds-previousHundreds;
     if(newMilestones>0){
       emitRoom(key,"tiktok_like",{
