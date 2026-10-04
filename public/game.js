@@ -199,6 +199,8 @@ function update(dt){
           if(b.hp<=0){
             b.hp=0;
             b.alive=false;
+            b.x=-1000;
+            b.y=-1000;
             a.kills++;
           }
         }
@@ -208,6 +210,8 @@ function update(dt){
           if(a.hp<=0){
             a.hp=0;
             a.alive=false;
+            a.x=-1000;
+            a.y=-1000;
             b.kills++;
           }
         }
