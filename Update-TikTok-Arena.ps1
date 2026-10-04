@@ -40,7 +40,7 @@ try {
     Write-Host "Updating game files..."
 
     Get-ChildItem -LiteralPath $source -Force | ForEach-Object {
-      if ($_.Name -ne ".git" -and $_.Name -ne "node_modules" -and $_.Name -ne "Start-TikTok-Arena.bat" -and $_.Name -ne "Update-TikTok-Arena.ps1") {
+      if ($_.Name -ne ".git" -and $_.Name -ne "node_modules") {
         Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $Root $_.Name) -Recurse -Force
       }
     }
