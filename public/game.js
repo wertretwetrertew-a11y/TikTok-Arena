@@ -29,6 +29,8 @@ function makeFighter(user,hp,source,power=1){
     id:id,
     name:user.nickname||id,
     avatar:user.profilePictureUrl||"",
+    avatarImage:null,
+    avatarLoaded:false,
     maxHp:hp,
     hp:hp,
     kills:0,
@@ -43,6 +45,12 @@ function makeFighter(user,hp,source,power=1){
     alive:true
   };
   fighters.set(id,f);
+  if(f.avatar){
+    const img=new Image();
+    img.onload=function(){ f.avatarImage=img; f.avatarLoaded=true; };
+    img.onerror=function(){ f.avatarLoaded=false; };
+    img.src=f.avatar;
+  }
   renderLeaderboard();
   return f;
 }
@@ -227,10 +235,27 @@ function draw(){
     ctx.save();
     ctx.globalAlpha=f.alive?1:0.22;
     ctx.beginPath();
-    ctx.arc(f.x,f.y,20,0,Math.PI*2);
+    ctx.arc(f.x,f.y,22,0,Math.PI*2);
     ctx.fillStyle=f.color;
     ctx.fill();
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(f.x,f.y,19,0,Math.PI*2);
+    ctx.clip();
+    if(f.avatarLoaded && f.avatarImage){
+      ctx.drawImage(f.avatarImage,f.x-19,f.y-19,38,38);
+    }else{
+      ctx.fillStyle=f.color;
+      ctx.fillRect(f.x-19,f.y-19,38,38);
+      ctx.fillStyle="#fff";
+      ctx.font="bold 16px system-ui";
+      ctx.textAlign="center";
+      ctx.textBaseline="middle";
+      ctx.fillText((f.name||"?").charAt(0).toUpperCase(),f.x,f.y);
+    }
+    ctx.restore();
     ctx.strokeStyle="#fff";
+    ctx.lineWidth=2;
     ctx.stroke();
     ctx.globalAlpha=0.8;
     ctx.fillStyle="#111";
