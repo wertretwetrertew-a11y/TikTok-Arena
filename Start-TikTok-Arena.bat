@@ -3,7 +3,7 @@ setlocal
 cd /d "%~dp0"
 
 echo =====================================
-echo  TikTok Arena - FRESH START v3
+echo  TikTok Arena - FRESH START v4
 echo =====================================
 echo.
 
@@ -16,12 +16,12 @@ if errorlevel 1 (
   exit /b 1
 )
 
-set "UPDATER=%TEMP%\TikTok-Arena-Updater-FRESH-v3.ps1"
-set "CACHE=%RANDOM%%RANDOM%%RANDOM%"
-echo Downloading FRESH updater v3 from GitHub...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$u='https://raw.githubusercontent.com/wertretwetrertew-a11y/TikTok-Arena/main/Update-TikTok-Arena.ps1?fresh=%CACHE%'; Invoke-WebRequest -Uri $u -Headers @{'Cache-Control'='no-cache';'Pragma'='no-cache'} -OutFile '%UPDATER%' -UseBasicParsing"
+set "UPDATER=%TEMP%\TikTok-Arena-Updater-FRESH-v4.ps1"
+echo Downloading FRESH updater v5 from GitHub API...
+
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; $u='https://api.github.com/repos/wertretwetrertew-a11y/TikTok-Arena/contents/Update-TikTok-Arena.ps1?ref=main'; $r=Invoke-RestMethod -Uri $u -Headers @{'Accept'='application/vnd.github+json';'User-Agent'='TikTok-Arena-Launcher';'Cache-Control'='no-cache'} -Method Get; [IO.File]::WriteAllBytes('%UPDATER%', [Convert]::FromBase64String(($r.content -replace '\s','')))"
 if errorlevel 1 (
-  echo Failed to download the fresh updater.
+  echo Failed to download the fresh updater from GitHub.
   echo.
   pause
   exit /b 1
