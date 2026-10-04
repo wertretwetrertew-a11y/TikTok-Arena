@@ -49,9 +49,9 @@ function makeFighter(user,hp,source,power=1,giftName=""){
   fighters.set(id,f);
   if(f.avatar){
     const img=new Image();
-    img.onload=function(){ f.avatarImage=img; f.avatarLoaded=true; };
+    img.onload=function(){ f.avatarImage=img; f.avatarLoaded=true; draw(); };
     img.onerror=function(){ f.avatarLoaded=false; };
-    img.src=f.avatar;
+    img.src="/api/avatar?url="+encodeURIComponent(f.avatar);
   }
   renderLeaderboard();
   return f;
@@ -294,7 +294,9 @@ function renderLeaderboard(){
       const status=f.alive?'':' · Погиб';
       const hp=f.alive?(Math.ceil(f.hp)+'/'+f.maxHp):'0 HP';
       const source=f.source==="gift"?("🎁 "+escapeHtml(f.giftName||"Подарок")):f.source==="likes"?"❤️ 100 лайков":"⭐ Подписка";
-      return '<div class="fighter"><img class="avatar" src="'+escapeHtml(f.avatar)+'" alt=""><div><div class="name">'+escapeHtml(f.name)+'</div><div class="meta">⚔ '+f.kills+' киллов · '+source+status+'</div></div><div class="hp">'+hp+'</div></div>';
+      const avatarSrc=f.avatar?"/api/avatar?url="+encodeURIComponent(f.avatar):"";
+      const avatarHtml=avatarSrc?'<img class="avatar" src="'+escapeHtml(avatarSrc)+'" alt="">':'<div class="avatar"></div>';
+      return '<div class="fighter">'+avatarHtml+'<div><div class="name">'+escapeHtml(f.name)+'</div><div class="meta">⚔ '+f.kills+' киллов · '+source+status+'</div></div><div class="hp">'+hp+'</div></div>';
     }).join("");
 }
 
