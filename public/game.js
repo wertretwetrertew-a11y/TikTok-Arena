@@ -9,7 +9,9 @@ const fighterCountEl=document.querySelector(".fighter-count");
 const fighters=new Map();
 const colors=["#6f8cff","#ff668f","#64dfb0","#ffc857","#bd7cff","#55c7ff","#ff8c52","#c5e86c"];
 let running=false;
-const ROUND_DURATION_SECONDS=1800;
+const ROUND_DURATIONS=[5,7,10,15];
+let selectedRoundMinutes=10;
+let ROUND_DURATION_SECONDS=selectedRoundMinutes*60;
 let timeLeft=ROUND_DURATION_SECONDS;
 let roundStartedAt=0;
 let lastFrame=performance.now();
@@ -133,6 +135,23 @@ document.getElementById("connect").onclick=function(){
   if(username) socket.emit("join-room",{username:username});
 };
 
+const roundTimeSelect=document.getElementById("roundTime");
+if(roundTimeSelect){
+  roundTimeSelect.value=String(selectedRoundMinutes);
+  roundTimeSelect.onchange=function(){
+    if(running){
+      roundTimeSelect.value=String(selectedRoundMinutes);
+      return;
+    }
+    const minutes=Number(roundTimeSelect.value);
+    if(ROUND_DURATIONS.includes(minutes)){
+      selectedRoundMinutes=minutes;
+      ROUND_DURATION_SECONDS=selectedRoundMinutes*60;
+      timeLeft=ROUND_DURATION_SECONDS;
+      timerEl.textContent=formatTime(timeLeft);
+    }
+  };
+}
 document.getElementById("start").onclick=startRound;
 
 document.getElementById("demoGift").onclick=function(){
@@ -159,7 +178,20 @@ document.getElementById("demoSub").onclick=function(){
   });
 };
 
+function formatTime(seconds){
+  const total=Math.max(0,Math.ceil(seconds));
+  const minutes=Math.floor(total/60);
+  const secs=total%60;
+  return String(minutes).padStart(2,"0")+":"+String(secs).padStart(2,"0");
+}
+
 function startRound(){
+  const minutes=roundTimeSelect?Number(roundTimeSelect.value):selectedRoundMinutes;
+  if(ROUND_DURATIONS.includes(minutes)){
+    selectedRoundMinutes=minutes;
+    ROUND_DURATION_SECONDS=selectedRoundMinutes*60;
+  }
+
   if(fighters.size===0){
     makeFighter({uniqueId:"demo-a",nickname:"Player_A"},5,"gift");
     makeFighter({uniqueId:"demo-b",nickname:"Player_B"},5,"gift");
@@ -202,7 +234,7 @@ function finishRound(){
 function update(dt){
   if(!running) return;
   timeLeft=Math.max(0,ROUND_DURATION_SECONDS-(performance.now()-roundStartedAt)/1000);
-  timerEl.textContent=Math.ceil(timeLeft);
+  timerEl.textContent=formatTime(timeLeft);
 
   fighters.forEach(function(f){
     if(!f.alive) return;
