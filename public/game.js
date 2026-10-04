@@ -213,6 +213,12 @@ function update(dt){
     }
   }
 
+  // Remove defeated fighters from the active arena state after death.
+  Array.from(fighters.entries()).forEach(function(entry){
+    if(!entry[1].alive){
+      fighters.delete(entry[0]);
+    }
+  });
   const living=Array.from(fighters.values()).filter(function(f){return f.alive;}).length;
   if(timeLeft<=0||living<=1) finishRound();
   renderLeaderboard();
