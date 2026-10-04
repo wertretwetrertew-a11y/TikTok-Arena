@@ -31,12 +31,46 @@ async function connectTikTok(username){
   if(!key) throw new Error("TikTok username is required");
   if(connections.has(key)) return;
   const connection=new TikTokLiveConnection(key,{processInitialData:false,enableExtendedGiftInfo:false});
+  const processedGiftEvents=new Set();
   connection.on(WebcastEvent.GIFT,data=>{
-    if(data.giftType===1 && !data.repeatEnd) return;
-    emitRoom(key,"tiktok_gift",{user:{uniqueId:data.uniqueId,nickname:data.nickname||data.uniqueId,profilePictureUrl:data.profilePictureUrl||""},giftId:data.giftId,giftName:data.giftName,giftValue:Number(data.diamondCount||0)*Math.max(1,Number(data.repeatCount||1)),repeatCount:Number(data.repeatCount||1),timestamp:Date.now()});
+    // TikTok can emit several messages while a streakable gift is being sent.
+    // We create exactly one fighter: only process the final streak event.
+    const giftType=Number(data.giftType ?? data.giftDetails?.giftType ?? data.gift?.giftType ?? 0);
+    const repeatEnd=Boolean(data.repeatEnd ?? data.gift?.repeatEnd ?? false);
+    if(giftType===1 && !repeatEnd) return;
+
+    const user=data.user||{};
+    const uniqueId=user.uniqueId||data.uniqueId||user.userId||data.userId;
+    const nickname=user.nickname||data.nickname||uniqueId||"Зритель";
+    const profilePictureUrl=user.profilePictureUrl||data.profilePictureUrl||user.userDetails?.profilePictureUrls?.[0]||"";
+    const giftId=data.giftId ?? data.giftDetails?.giftId ?? data.gift?.giftId ?? data.gift?.gift_id;
+    const repeatCount=Math.max(1,Number(data.repeatCount ?? data.gift?.repeatCount ?? data.gift?.repeat_count ?? 1));
+    const eventId=data.msgId||data.messageId;
+    if(eventId){
+      if(processedGiftEvents.has(eventId)) return;
+      processedGiftEvents.add(eventId);
+      if(processedGiftEvents.size>500) processedGiftEvents.delete(processedGiftEvents.values().next().value);
+    }
+
+    const giftName=data.giftName||data.giftDetails?.giftName||data.gift?.name||"Подарок";
+    const diamondCount=Number(data.diamondCount ?? data.giftDetails?.diamondCount ?? data.gift?.diamondCount ?? 0);
+    emitRoom(key,"tiktok_gift",{
+      user:{uniqueId,nickname,profilePictureUrl},
+      giftId,
+      giftName,
+      giftValue:diamondCount*repeatCount,
+      repeatCount,
+      timestamp:Date.now()
+    });
   });
-  connection.on(WebcastEvent.LIKE,data=>emitRoom(key,"tiktok_like",{user:{uniqueId:data.uniqueId,nickname:data.nickname||data.uniqueId,profilePictureUrl:data.profilePictureUrl||""},likeCount:Number(data.likeCount||0),totalLikeCount:Number(data.totalLikeCount||0),timestamp:Date.now()}));
-  connection.on("subscribe",data=>emitRoom(key,"tiktok_subscribe",{user:{uniqueId:data.uniqueId,nickname:data.nickname||data.uniqueId,profilePictureUrl:data.profilePictureUrl||""},timestamp:Date.now()}));
+  connection.on(WebcastEvent.LIKE,data=>{
+    const user=data.user||{};
+    emitRoom(key,"tiktok_like",{user:{uniqueId:user.uniqueId||data.uniqueId,nickname:user.nickname||data.nickname||user.uniqueId||data.uniqueId,profilePictureUrl:user.profilePictureUrl||data.profilePictureUrl||user.userDetails?.profilePictureUrls?.[0]||""},likeCount:Number(data.likeCount||0),totalLikeCount:Number(data.totalLikeCount||0),timestamp:Date.now()});
+  });
+  connection.on("subscribe",data=>{
+    const user=data.user||{};
+    emitRoom(key,"tiktok_subscribe",{user:{uniqueId:user.uniqueId||data.uniqueId,nickname:user.nickname||data.nickname||user.uniqueId||data.uniqueId,profilePictureUrl:user.profilePictureUrl||data.profilePictureUrl||user.userDetails?.profilePictureUrls?.[0]||""},timestamp:Date.now()});
+  });
   connection.on("connected",()=>emitRoom(key,"tiktok_connected",{roomId:key,timestamp:Date.now()}));
   connection.on("disconnected",reason=>emitRoom(key,"tiktok_disconnected",{reason:String(reason||""),timestamp:Date.now()}));
   connection.on("error",error=>emitRoom(key,"tiktok_error",{message:error?.message||String(error),timestamp:Date.now()}));
