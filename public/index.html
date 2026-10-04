@@ -3,7 +3,7 @@
 <body><main class="app">
 <header class="topbar"><div><div class="eyebrow">TIKTOK LIVE</div><h1>TikTok Arena</h1></div><div class="controls"><input id="username" placeholder="@username"><button id="connect">Подключить</button><button id="start" class="primary">Старт раунда</button></div></header>
 <section class="rules"><div><b>🎁 Подарок</b><span>от 5 HP</span></div><div><b>❤️ 100 лайков</b><span>3 HP</span></div><div><b>⭐ Подписка</b><span>4 HP</span></div></section>
-<section class="statusbar"><span id="connection">Не подключено</span><span>Раунд: <b id="timer">60</b> сек</span><button id="demoGift">Демо: подарок</button><button id="demoLike">Демо: 100 лайков</button><button id="demoSub">Демо: подписка</button></section>
-<section class="layout"><div class="arena-card"><canvas id="arena" width="900" height="620"></canvas><div id="winner" class="winner hidden"></div></div><aside class="leaderboard"><h2>Бойцы</h2><div class="legend">1 зритель = 1 боец за раунд</div><div id="fighters"></div></aside></section>
+<section class="statusbar"><span id="connection">Не подключено</span><span>Раунд: <b id="timer">30:00</b></span><button id="demoGift">Демо: подарок</button><button id="demoLike">Демо: 100 лайков</button><button id="demoSub">Демо: подписка</button></section>
+<section class="layout"><div class="arena-card"><canvas id="arena" width="900" height="620"></canvas><div id="winner" class="winner hidden"></div></div><aside class="leaderboard"><h2>Бойцы</h2><div class="legend">1 зритель = 1 боец за раунд · 100 лайков = 1 боец</div><div id="fighters"></div></aside></section>
 <div class="build-version">Версия сборки: <b id="buildVersion">загрузка...</b></div>
 </main><script src="/socket.io/socket.io.js"></script><script src="/game.js"></script></body></html>
