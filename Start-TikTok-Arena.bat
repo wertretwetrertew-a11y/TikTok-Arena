@@ -3,8 +3,7 @@ setlocal
 cd /d "%~dp0"
 
 echo =====================================
-echo  TikTok Arena
-echo  Bootstrap + Update + Start
+echo  TikTok Arena - FRESH START v3
 echo =====================================
 echo.
 
@@ -17,12 +16,12 @@ if errorlevel 1 (
   exit /b 1
 )
 
-set "UPDATER=%TEMP%\TikTok-Arena-Updater-Latest.ps1"
-set "CACHE=%RANDOM%%RANDOM%"
-echo Downloading the latest updater from GitHub...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$u='https://raw.githubusercontent.com/wertretwetrertew-a11y/TikTok-Arena/main/Update-TikTok-Arena.ps1?cacheBust=%CACHE%'; Invoke-WebRequest -Uri $u -Headers @{'Cache-Control'='no-cache';'Pragma'='no-cache'} -OutFile '%UPDATER%' -UseBasicParsing"
+set "UPDATER=%TEMP%\TikTok-Arena-Updater-FRESH-v3.ps1"
+set "CACHE=%RANDOM%%RANDOM%%RANDOM%"
+echo Downloading FRESH updater v3 from GitHub...
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$u='https://raw.githubusercontent.com/wertretwetrertew-a11y/TikTok-Arena/main/Update-TikTok-Arena.ps1?fresh=%CACHE%'; Invoke-WebRequest -Uri $u -Headers @{'Cache-Control'='no-cache';'Pragma'='no-cache'} -OutFile '%UPDATER%' -UseBasicParsing"
 if errorlevel 1 (
-  echo Failed to download the latest updater.
+  echo Failed to download the fresh updater.
   echo.
   pause
   exit /b 1
