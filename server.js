@@ -87,10 +87,13 @@ async function connectTikTokLikes(username){
       data?.profilePictureUrl ||
       user.avatar?.urls?.[0] ||
       user.avatar?.urlList?.[0] ||
+      user.avatarThumb?.urlList?.[0] ||
+      user.avatarMedium?.urlList?.[0] ||
       "";
-    const incoming=Math.max(0,Number(data?.count ?? data?.likeCount ?? data?.likes ?? 0)||0);
+    const rawCount=Number(data?.count ?? data?.likeCount ?? data?.likes ?? 0)||0;
+    const incoming=Math.max(1,rawCount);
     const total=Number(data?.total ?? data?.totalLikeCount ?? data?.total_like_count ?? 0)||0;
-    if(!uniqueId || incoming<=0) return;
+    if(!uniqueId) return;
     const bucketKey=key+":"+uniqueId;
     const previousTotal=likeTotals.get(bucketKey)||0;
     const newTotal=previousTotal+incoming;
@@ -115,9 +118,16 @@ async function connectTikTokLikes(username){
     console.log("[TikTok Arena] PirateTok LIKE error",error?.message||String(error));
     emitRoom(key,"tiktok_error",{message:"Like connection: "+(error?.message||String(error)),timestamp:Date.now()});
   });
-  await client.connect();
   likeConnections.set(key,client);
-  console.log("[TikTok Arena] PirateTok LIKE connected",key);
+  client.connect().then(()=>{
+    console.log("[TikTok Arena] PirateTok LIKE disconnected",key);
+    likeConnections.delete(key);
+  }).catch(error=>{
+    console.log("[TikTok Arena] PirateTok LIKE connect failed",error?.message||String(error));
+    likeConnections.delete(key);
+    emitRoom(key,"tiktok_error",{message:"Like connection: "+(error?.message||String(error)),timestamp:Date.now()});
+  });
+  console.log("[TikTok Arena] PirateTok LIKE starting",key);
 }
 
 async function connectTikTok(username){
