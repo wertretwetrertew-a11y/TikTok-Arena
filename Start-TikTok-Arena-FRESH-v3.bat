@@ -18,7 +18,7 @@ if errorlevel 1 (
 
 set "ZIP=%TEMP%\TikTok-Arena-main.zip"
 set "EXTRACT=%TEMP%\TikTok-Arena-main-extract"
-set "RUNROOT=%TEMP%\TikTok-Arena-FRESH-RUN"
+set "RUNROOT=%TEMP%\TikTok-Arena-RUN-%RANDOM%-%RANDOM%"
 set "URL=https://github.com/wertretwetrertew-a11y/TikTok-Arena/archive/refs/heads/main.zip"
 
 echo [1/5] Downloading repository directly from GitHub...
@@ -35,7 +35,7 @@ echo Stopping previous TikTok Arena server...
 for /f "tokens=5" %%P in ('netstat -ano ^| findstr ":3000"') do taskkill /PID %%P /F /T >nul 2>nul
 
 echo [2/5] Extracting fresh repository...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; if (Test-Path '%EXTRACT%') { Remove-Item '%EXTRACT%' -Recurse -Force }; if (Test-Path '%RUNROOT%') { Remove-Item '%RUNROOT%' -Recurse -Force }; Expand-Archive -LiteralPath '%ZIP%' -DestinationPath '%EXTRACT%' -Force"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; if (Test-Path '%EXTRACT%') { Remove-Item '%EXTRACT%' -Recurse -Force }; Expand-Archive -LiteralPath '%ZIP%' -DestinationPath '%EXTRACT%' -Force"
 if errorlevel 1 (
   echo ERROR: Could not extract the GitHub archive.
   pause
