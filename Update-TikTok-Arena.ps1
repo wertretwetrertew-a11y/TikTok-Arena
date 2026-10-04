@@ -45,13 +45,14 @@ try {
       }
     }
 
-    # Always refresh the critical server entrypoint directly from the exact GitHub commit.
-    $serverUrl = "https://raw.githubusercontent.com/$Repo/$remoteSha/server.js?cacheBust=$([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())"
-    Invoke-WebRequest -Uri $serverUrl -OutFile (Join-Path $Root "server.js") -UseBasicParsing
-
     Set-Content -LiteralPath $localShaFile -Value $remoteSha -NoNewline
     Write-Host "Update installed."
   }
+
+  # Always refresh the critical server entrypoint from the exact GitHub commit,
+  # even when the local version marker incorrectly says the app is current.
+  $serverUrl = "https://raw.githubusercontent.com/$Repo/$remoteSha/server.js?cacheBust=$([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())"
+  Invoke-WebRequest -Uri $serverUrl -OutFile (Join-Path $Root "server.js") -UseBasicParsing
 
   if (-not (Test-Path (Join-Path $Root "node_modules"))) {
     Write-Host "Installing dependencies..."
