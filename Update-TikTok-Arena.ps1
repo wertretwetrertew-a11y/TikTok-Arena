@@ -62,6 +62,17 @@ try {
   }
 
   Write-Host ""
+  Write-Host "Stopping old TikTok Arena server..." -ForegroundColor Yellow
+  try {
+    $connections = Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue
+    foreach ($connection in $connections) {
+      if ($connection.OwningProcess -and $connection.OwningProcess -ne $PID) {
+        Stop-Process -Id $connection.OwningProcess -Force -ErrorAction SilentlyContinue
+      }
+    }
+  } catch {}
+  Start-Sleep -Seconds 1
+
   Write-Host "Starting TikTok Arena server..."
   Write-Host "http://localhost:3000"
   Write-Host ""
