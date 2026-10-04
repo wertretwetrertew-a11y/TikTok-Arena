@@ -79,7 +79,7 @@ for /f "tokens=5" %%P in ('netstat -ano ^| findstr ":3000"') do taskkill /PID %%
 start "TikTok Arena Server" cmd /c "cd /d ""%RUNROOT%"" && node server.js"
 
 echo Waiting for server...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$ok=$false; for($i=0;$i-lt30;$i++){ Start-Sleep 1; try{$r=Invoke-WebRequest -Uri 'http://127.0.0.1:3000/api/health' -UseBasicParsing -TimeoutSec 2; if($r.StatusCode -eq 200){$ok=$true;break}}catch{}}; if(-not $ok){exit 1}"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ok=$false; for($i=0;$i -lt 30;$i++){ Start-Sleep 1; try{$r=Invoke-WebRequest -Uri 'http://127.0.0.1:3000/api/health' -UseBasicParsing -TimeoutSec 2; if($r.StatusCode -eq 200){$ok=$true;break}}catch{}}; if(-not $ok){exit 1}"
 if errorlevel 1 (
   echo ERROR: Server did not become ready on port 3000.
   echo The server window should remain open with the Node.js error.
