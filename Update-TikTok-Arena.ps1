@@ -78,9 +78,11 @@ try {
   Write-Host ""
 
   $env:BUILD_VERSION = $remoteSha
-  $serverLog = Join-Path $Root "tiktok-arena-server.log"
-  if (Test-Path $serverLog) { Remove-Item $serverLog -Force -ErrorAction SilentlyContinue }
-  $serverProcess = Start-Process -FilePath "node.exe" -ArgumentList "server.js" -WorkingDirectory $Root -WindowStyle Normal -RedirectStandardOutput $serverLog -RedirectStandardError $serverLog -PassThru
+  $serverLogOut = Join-Path $Root "tiktok-arena-server.out.log"
+  $serverLogErr = Join-Path $Root "tiktok-arena-server.err.log"
+  if (Test-Path $serverLogOut) { Remove-Item $serverLogOut -Force -ErrorAction SilentlyContinue }
+  if (Test-Path $serverLogErr) { Remove-Item $serverLogErr -Force -ErrorAction SilentlyContinue }
+  $serverProcess = Start-Process -FilePath "node.exe" -ArgumentList "server.js" -WorkingDirectory $Root -WindowStyle Normal -RedirectStandardOutput $serverLogOut -RedirectStandardError $serverLogErr -PassThru
 
   Write-Host "Waiting for the server to become ready..."
   $ready = $false
@@ -97,7 +99,8 @@ try {
 
   if (-not $ready) {
     $details = ""
-    if (Test-Path $serverLog) { $details = (Get-Content $serverLog -Raw -ErrorAction SilentlyContinue) }
+    if (Test-Path $serverLogOut) { $details += (Get-Content $serverLogOut -Raw -ErrorAction SilentlyContinue) }
+    if (Test-Path $serverLogErr) { $details += "`n" + (Get-Content $serverLogErr -Raw -ErrorAction SilentlyContinue) }
     if ([string]::IsNullOrWhiteSpace($details)) { $details = "Node server produced no log output." }
     throw "TikTok Arena server did not become ready at http://localhost:3000`n`nSERVER LOG:`n$details"
   }
