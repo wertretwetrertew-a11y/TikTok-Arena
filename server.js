@@ -17,6 +17,7 @@ const connections = new Map();
 const likeBuckets = new Map();
 const subscribedUsers = new Set();
 const likeTotals = new Map();
+const likeUsers = new Map();
 
 app.use((req,res,next)=>{
   res.setHeader("Cache-Control","no-store, no-cache, must-revalidate, proxy-revalidate");
@@ -47,6 +48,27 @@ app.get("/api/avatar", async (req,res) => {
 });
 
 function emitRoom(username,event,payload){ io.to(username).emit(event,payload); }
+\nfunction emitLikeLeaderboard(username){
+  const rows=[];
+  const prefix=username+":";
+  likeTotals.forEach((total,bucketKey)=>{
+    if(!bucketKey.startsWith(prefix)) return;
+    const uniqueId=bucketKey.slice(prefix.length);
+    const profile=likeUsers.get(bucketKey)||{};
+    rows.push({
+      uniqueId,
+      nickname:profile.nickname||uniqueId,
+      profilePictureUrl:profile.profilePictureUrl||"",
+      likes:total
+    });
+  });
+  rows.sort((a,b)=>b.likes-a.likes||a.nickname.localeCompare(b.nickname));
+  emitRoom(username,"tiktok_like_leaderboard",{
+    entries:rows.slice(0,10),
+    timestamp:Date.now()
+  });
+}
+
 
 async function connectTikTok(username){
   const key=String(username).replace(/^@/,"").trim().toLowerCase();
@@ -99,6 +121,8 @@ async function connectTikTok(username){
     const newHundreds=Math.floor(newTotal/100);
     likeTotals.set(bucketKey,newTotal);
     likeBuckets.set(bucketKey,newTotal%100);
+    likeUsers.set(bucketKey,{nickname,profilePictureUrl});
+    emitLikeLeaderboard(key);
     const newMilestones=newHundreds-previousHundreds;
     if(newMilestones>0){
       emitRoom(key,"tiktok_like",{
@@ -138,6 +162,7 @@ io.on("connection",socket=>{
     const key=String(username||"").replace(/^@/,"").trim().toLowerCase();
     if(!key) return socket.emit("tiktok_error",{message:"Введите TikTok username"});
     socket.join(key);
+    emitLikeLeaderboard(key);
     try { await connectTikTok(key); socket.emit("tiktok_status",{connected:true,username:key}); }
     catch(error){ socket.emit("tiktok_error",{message:error?.message||String(error)}); }
   });
