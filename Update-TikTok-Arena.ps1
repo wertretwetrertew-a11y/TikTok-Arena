@@ -4,11 +4,9 @@ $Repo = "wertretwetrertew-a11y/TikTok-Arena"
 $Branch = "main"
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Temp = Join-Path $env:TEMP "TikTok-Arena-update-fresh"
-$Zip = Join-Path $Temp "latest.zip"
-$Extract = Join-Path $Temp "extract"
 
 Write-Host "====================================="
-Write-Host " TikTok Arena - updater v3"
+Write-Host " TikTok Arena - updater v4"
 Write-Host "====================================="
 Write-Host ""
 
@@ -16,29 +14,49 @@ try {
   if (Test-Path $Temp) { Remove-Item $Temp -Recurse -Force -ErrorAction SilentlyContinue }
   New-Item -ItemType Directory -Path $Temp -Force | Out-Null
 
-  $cacheBust = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
-  $download = "https://github.com/$Repo/archive/refs/heads/$Branch.zip?cacheBust=$cacheBust"
-
-  Write-Host "Downloading the latest game from GitHub..."
-  Invoke-WebRequest -Uri $download -OutFile $Zip -UseBasicParsing
-
-  Expand-Archive -Path $Zip -DestinationPath $Extract -Force
-  $source = Join-Path $Extract "TikTok-Arena-$Branch"
-  if (-not (Test-Path $source)) {
-    throw "GitHub archive was downloaded, but the repository folder was not found."
+  $treeUrl = "https://api.github.com/repos/$Repo/git/trees/$Branch?recursive=1"
+  $headers = @{
+    "User-Agent" = "TikTok-Arena-Updater"
+    "Accept" = "application/vnd.github+json"
+    "Cache-Control" = "no-cache"
   }
 
-  Write-Host "Updating game files..."
-  Get-ChildItem -LiteralPath $source -Force | ForEach-Object {
-    if ($_.Name -ne ".git" -and $_.Name -ne "node_modules") {
-      Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $Root $_.Name) -Recurse -Force
+  Write-Host "Reading the latest file list from GitHub..."
+  $treeResponse = Invoke-RestMethod -Uri $treeUrl -Headers $headers -Method Get
+
+  if (-not $treeResponse.tree) {
+    throw "GitHub returned an empty repository tree."
+  }
+
+  $files = @($treeResponse.tree | Where-Object {
+    $_.type -eq "blob" -and
+    $_.path -notlike ".git/*" -and
+    $_.path -ne ".git"
+  })
+
+  Write-Host ("Found " + $files.Count + " repository files.")
+  Write-Host "Downloading the latest game files..."
+
+  foreach ($file in $files) {
+    $relativePath = [string]$file.path
+    $target = Join-Path $Root $relativePath
+    $parent = Split-Path -Parent $target
+
+    if ($parent -and -not (Test-Path $parent)) {
+      New-Item -ItemType Directory -Path $parent -Force | Out-Null
     }
+
+    $encodedPath = [System.Uri]::EscapeUriString($relativePath)
+    $rawUrl = "https://raw.githubusercontent.com/$Repo/$Branch/$encodedPath"
+
+    Invoke-WebRequest -Uri $rawUrl -Headers @{
+      "Cache-Control" = "no-cache"
+      "Pragma" = "no-cache"
+      "User-Agent" = "TikTok-Arena-Updater"
+    } -OutFile $target -UseBasicParsing
   }
 
-  $serverUrl = "https://raw.githubusercontent.com/$Repo/$Branch/server.js?cacheBust=$([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())"
-  Invoke-WebRequest -Uri $serverUrl -OutFile (Join-Path $Root "server.js") -UseBasicParsing
-
-  Set-Content -LiteralPath (Join-Path $Root ".tiktok-arena-version") -Value ("github-main-" + $cacheBust) -NoNewline
+  Set-Content -LiteralPath (Join-Path $Root ".tiktok-arena-version") -Value ("github-main-" + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()) -NoNewline
 
   Write-Host "Update installed."
   Write-Host ""
