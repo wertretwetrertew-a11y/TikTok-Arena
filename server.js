@@ -1,7 +1,7 @@
 import express from "express";
 import http from "http";
 import { Server } from "socket.io";
-import { TikTokLiveConnection, WebcastEvent } from "tiktok-live-connector";
+import { TikTokLiveConnection, WebcastEvent, ControlEvent } from "tiktok-live-connector";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
@@ -108,9 +108,9 @@ async function connectTikTok(username){
       timestamp:Date.now()
     });
   });
-  connection.on(WebcastEvent.LIKE,data=>{
-    // TikTok-Live-Connector normally exposes likeCount and the viewer in data.user.
-    // Keep fallbacks for connector payload variants so the leaderboard does not silently ignore events.
+  const processedLikeEvents=new Set();
+
+  function processLikeEvent(data,source){
     const user=data?.user||data?.viewer||{};
     const uniqueId=String(
       user.uniqueId ??
@@ -121,13 +121,7 @@ async function connectTikTok(username){
       data?.user?.user_id ??
       ""
     ).trim();
-    const nickname=String(
-      user.nickname ??
-      data?.nickname ??
-      user.displayName ??
-      uniqueId ??
-      "Зритель"
-    );
+    const nickname=String(user.nickname ?? data?.nickname ?? data?.displayName ?? uniqueId ?? "Зритель");
     const profilePictureUrl=
       user.profilePictureUrl ||
       data?.profilePictureUrl ||
@@ -135,46 +129,70 @@ async function connectTikTok(username){
       user.profilePicture?.urlList?.[0] ||
       "";
 
-    const rawLikeCount=data?.likeCount ?? data?.like_count ?? data?.likes ?? data?.like?.likeCount ?? 0;
-    const incoming=Math.max(0,Number(rawLikeCount)||0);
+    const incoming=Math.max(0,Number(
+      data?.likeCount ??
+      data?.like_count ??
+      data?.likes ??
+      data?.like?.likeCount ??
+      data?.count ??
+      0
+    )||0);
+    const totalLikeCount=Number(data?.totalLikeCount ?? data?.total_like_count ?? data?.total ?? 0)||0;
 
-    // Leave a server-side trace while testing the real LIVE pipeline.
-    console.log("[TikTok Arena] LIKE",{
-      username:key,
-      uniqueId,
-      nickname,
-      likeCount:incoming,
-      totalLikeCount:Number(data?.totalLikeCount ?? data?.total_like_count ?? 0)||0
-    });
+    if(!uniqueId || incoming<=0) return false;
 
-    if(!uniqueId || incoming<=0){
-      console.log("[TikTok Arena] LIKE ignored: missing user or likeCount");
-      return;
-    }
+    // The same protobuf can reach both decodedData and WebcastEvent.LIKE.
+    // Use the stream-wide total as a stable event fingerprint when available.
+    const fingerprint=totalLikeCount>0
+      ? key+":"+uniqueId+":"+totalLikeCount
+      : key+":"+uniqueId+":"+incoming+":"+String(data?.msgId||data?.messageId||"");
+    if(processedLikeEvents.has(fingerprint)) return false;
+    processedLikeEvents.add(fingerprint);
+    if(processedLikeEvents.size>2000) processedLikeEvents.delete(processedLikeEvents.values().next().value);
 
     const bucketKey=key+":"+uniqueId;
     const previousTotal=likeTotals.get(bucketKey)||0;
     const newTotal=previousTotal+incoming;
-    const previousHundreds=Math.floor(previousTotal/100);
-    const newHundreds=Math.floor(newTotal/100);
-
     likeTotals.set(bucketKey,newTotal);
     likeBuckets.set(bucketKey,newTotal%100);
     likeUsers.set(bucketKey,{nickname,profilePictureUrl});
-
-    // Update Top Likes immediately for every LIKE event, not only at 100-like milestones.
     emitLikeLeaderboard(key);
 
+    console.log("[TikTok Arena] LIKE",{
+      source,
+      username:key,
+      uniqueId,
+      nickname,
+      likeCount:incoming,
+      totalLikeCount
+    });
+
+    const previousHundreds=Math.floor(previousTotal/LIKE_MILESTONE);
+    const newHundreds=Math.floor(newTotal/LIKE_MILESTONE);
     const newMilestones=newHundreds-previousHundreds;
     if(newMilestones>0){
       emitRoom(key,"tiktok_like",{
         user:{uniqueId,nickname,profilePictureUrl},
-        likeCount:newMilestones*100,
+        likeCount:newMilestones*LIKE_MILESTONE,
         totalLikeCount:newTotal,
         timestamp:Date.now()
       });
     }
+    return true;
+  }
+
+  connection.on(WebcastEvent.LIKE,data=>{
+    processLikeEvent(data,"LIKE");
   });
+
+  // Fallback: the connector exposes every decoded protobuf message through
+  // ControlEvent.DECODED_DATA. This catches like messages even if the high-level
+  // LIKE event is not emitted correctly by the current TikTok payload.
+  connection.on(ControlEvent.DECODED_DATA,(event,decodedData)=>{
+    const eventName=String(event||"").toLowerCase();
+    if(eventName.includes("like")) processLikeEvent(decodedData,"decodedData:"+event);
+  });
+
   const subscribeEvent=WebcastEvent.SUBSCRIBE||"subscribe";
   connection.on(subscribeEvent,data=>{
     const user=data.user||{};
