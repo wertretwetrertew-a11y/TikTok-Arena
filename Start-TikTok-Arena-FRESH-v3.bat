@@ -31,6 +31,9 @@ if errorlevel 1 (
   exit /b 1
 )
 
+echo Stopping previous TikTok Arena server...
+for /f "tokens=5" %%P in ('netstat -ano ^| findstr ":3000"') do taskkill /PID %%P /F /T >nul 2>nul
+
 echo [2/5] Extracting fresh repository...
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; if (Test-Path '%EXTRACT%') { Remove-Item '%EXTRACT%' -Recurse -Force }; if (Test-Path '%RUNROOT%') { Remove-Item '%RUNROOT%' -Recurse -Force }; Expand-Archive -LiteralPath '%ZIP%' -DestinationPath '%EXTRACT%' -Force"
 if errorlevel 1 (
@@ -75,7 +78,6 @@ if errorlevel 1 (
 )
 
 echo [5/5] Starting TikTok Arena...
-for /f "tokens=5" %%P in ('netstat -ano ^| findstr ":3000"') do taskkill /PID %%P /F /T >nul 2>nul
 start "TikTok Arena Server" cmd /c "cd /d ""%RUNROOT%"" && node server.js"
 
 echo Waiting for server...
