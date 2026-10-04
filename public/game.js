@@ -6,6 +6,7 @@ const timerEl=document.getElementById("timer");
 const connectionEl=document.getElementById("connection");
 const winnerEl=document.getElementById("winner");
 const fighterCountEl=document.querySelector(".fighter-count");
+const likeLeaderboardEl=document.getElementById("likeLeaderboard");
 const fighters=new Map();
 const colors=["#6f8cff","#ff668f","#64dfb0","#ffc857","#bd7cff","#55c7ff","#ff8c52","#c5e86c"];
 let running=false;
@@ -129,6 +130,10 @@ socket.on("tiktok_error",function(d){
 socket.on("tiktok_gift",handleGift);
 socket.on("tiktok_like",handleLike);
 socket.on("tiktok_subscribe",handleSubscribe);
+
+socket.on("tiktok_like_leaderboard",function(d){
+  renderLikeLeaderboard(Array.isArray(d.entries)?d.entries:[]);
+});
 
 document.getElementById("connect").onclick=function(){
   const username=document.getElementById("username").value.trim();
@@ -392,6 +397,21 @@ function escapeHtml(value){
     .split("'").join("&#039;");
 }
 
+function renderLikeLeaderboard(entries){
+  if(!likeLeaderboardEl) return;
+  if(!entries.length){
+    likeLeaderboardEl.innerHTML='<div class="empty-likes">Пока нет лайков</div>';
+    return;
+  }
+  likeLeaderboardEl.innerHTML=entries.map(function(entry,index){
+    const avatarSrc=entry.profilePictureUrl?"/api/avatar?url="+encodeURIComponent(entry.profilePictureUrl):"";
+    const avatarHtml=avatarSrc?'<img class="avatar" src="'+escapeHtml(avatarSrc)+'" alt="">':'<div class="avatar"></div>';
+    const rank=index+1;
+    const rankLabel=rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':String(rank);
+    return '<div class="like-row"><div class="like-rank '+(rank<=3?'top':'')+'">'+rankLabel+'</div>'+avatarHtml+'<div class="like-name">'+escapeHtml(entry.nickname||entry.uniqueId||"Зритель")+'</div><div class="like-value">♥ '+Number(entry.likes||0).toLocaleString("ru-RU")+'</div></div>';
+  }).join("");
+}
+
 function renderLeaderboard(){
   if(fighterCountEl) fighterCountEl.textContent=String(fighters.size);
   fightersEl.innerHTML=Array.from(fighters.values())
@@ -415,5 +435,6 @@ function frame(now){
 }
 
 renderLeaderboard();
+renderLikeLeaderboard([]);
 fetch("/api/health").then(function(r){return r.json();}).then(function(d){var el=document.getElementById("buildVersion");if(el) el.textContent=d.version||"dev";}).catch(function(){});
 requestAnimationFrame(frame);
