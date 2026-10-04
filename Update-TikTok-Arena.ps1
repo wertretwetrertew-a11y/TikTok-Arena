@@ -6,7 +6,7 @@ $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Temp = Join-Path $env:TEMP "TikTok-Arena-update-fresh"
 
 Write-Host "====================================="
-Write-Host " TikTok Arena - updater v4"
+Write-Host " TikTok Arena - updater v5"
 Write-Host "====================================="
 Write-Host ""
 
@@ -14,18 +14,23 @@ try {
   if (Test-Path $Temp) { Remove-Item $Temp -Recurse -Force -ErrorAction SilentlyContinue }
   New-Item -ItemType Directory -Path $Temp -Force | Out-Null
 
-  $treeUrl = "https://api.github.com/repos/$Repo/git/trees/$Branch?recursive=1"
   $headers = @{
     "User-Agent" = "TikTok-Arena-Updater"
     "Accept" = "application/vnd.github+json"
     "Cache-Control" = "no-cache"
   }
 
-  Write-Host "Reading the latest file list from GitHub..."
+  $treeUrl = "https://api.github.com/repos/$Repo/git/trees/$Branch?recursive=1"
+
+  Write-Host "Reading the latest file list from GitHub API..."
   $treeResponse = Invoke-RestMethod -Uri $treeUrl -Headers $headers -Method Get
 
   if (-not $treeResponse.tree) {
     throw "GitHub returned an empty repository tree."
+  }
+
+  if ($treeResponse.truncated -eq $true) {
+    throw "GitHub repository tree is truncated; refusing to perform an incomplete update."
   }
 
   $files = @($treeResponse.tree | Where-Object {
@@ -35,7 +40,7 @@ try {
   })
 
   Write-Host ("Found " + $files.Count + " repository files.")
-  Write-Host "Downloading the latest game files..."
+  Write-Host "Downloading the latest game files through GitHub API..."
 
   foreach ($file in $files) {
     $relativePath = [string]$file.path
@@ -46,14 +51,19 @@ try {
       New-Item -ItemType Directory -Path $parent -Force | Out-Null
     }
 
-    $encodedPath = [System.Uri]::EscapeUriString($relativePath)
-    $rawUrl = "https://raw.githubusercontent.com/$Repo/$Branch/$encodedPath"
+    if (-not $file.sha) {
+      throw "GitHub did not return a blob SHA for $relativePath."
+    }
 
-    Invoke-WebRequest -Uri $rawUrl -Headers @{
-      "Cache-Control" = "no-cache"
-      "Pragma" = "no-cache"
-      "User-Agent" = "TikTok-Arena-Updater"
-    } -OutFile $target -UseBasicParsing
+    $blobUrl = "https://api.github.com/repos/$Repo/git/blobs/$($file.sha)"
+    $blob = Invoke-RestMethod -Uri $blobUrl -Headers $headers -Method Get
+
+    if ($blob.encoding -ne "base64" -or -not $blob.content) {
+      throw "GitHub returned an invalid blob response for $relativePath."
+    }
+
+    $bytes = [Convert]::FromBase64String(($blob.content -replace "\s", ""))
+    [IO.File]::WriteAllBytes($target, $bytes)
   }
 
   Set-Content -LiteralPath (Join-Path $Root ".tiktok-arena-version") -Value ("github-main-" + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()) -NoNewline
@@ -74,8 +84,8 @@ try {
   try {
     $lines = netstat -ano | Select-String ":3000"
     foreach ($line in $lines) {
-      $parts = [regex]::Split($line.ToString().Trim(), 's+') | Where-Object { $_ -ne "" }
-      if ($parts.Count -ge 5 -and $parts[-1] -match '^d+$') {
+      $parts = [regex]::Split($line.ToString().Trim(), '\s+') | Where-Object { $_ -ne "" }
+      if ($parts.Count -ge 5 -and $parts[-1] -match '^\d+$') {
         $pidToKill = [int]$parts[-1]
         if ($pidToKill -ne $PID) {
           taskkill /PID $pidToKill /F /T 2>$null | Out-Null
