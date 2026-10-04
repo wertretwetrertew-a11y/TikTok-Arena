@@ -16,6 +16,7 @@ const buildVersion = process.env.BUILD_VERSION || (fs.existsSync(versionFile) ? 
 const connections = new Map();
 const likeBuckets = new Map();
 const subscribedUsers = new Set();
+const likeTotals = new Map();
 
 app.use((req,res,next)=>{
   res.setHeader("Cache-Control","no-store, no-cache, must-revalidate, proxy-revalidate");
@@ -93,13 +94,17 @@ async function connectTikTok(username){
     if(!uniqueId || incoming<=0) return;
     const bucketKey=key+":"+uniqueId;
     const total=(likeBuckets.get(bucketKey)||0)+incoming;
-    const fightersToSpawn=Math.floor(total/100);
+    const previousHundreds=Math.floor(total/100);
+    const previousTotal=likeTotals.get(bucketKey)||0;
+    const newTotal=previousTotal+incoming;
+    const newHundreds=Math.floor(newTotal/100);
     likeBuckets.set(bucketKey,total%100);
-    for(let i=0;i<fightersToSpawn;i++){
+    likeTotals.set(bucketKey,newTotal);
+    if(newHundreds>previousHundreds){
       emitRoom(key,"tiktok_like",{
         user:{uniqueId,nickname,profilePictureUrl},
-        likeCount:100,
-        totalLikeCount:Number(data.totalLikeCount||0),
+        likeCount:(newHundreds-previousHundreds)*100,
+        totalLikeCount:newTotal,
         timestamp:Date.now()
       });
     }
