@@ -30,7 +30,7 @@ async function connectTikTok(username){
   const key=String(username).replace(/^@/,"").trim().toLowerCase();
   if(!key) throw new Error("TikTok username is required");
   if(connections.has(key)) return;
-  const connection=new WebcastPushConnection(key,{processInitialData:false,enableExtendedGiftInfo:true});
+  const connection=new WebcastPushConnection(key,{processInitialData:false,enableExtendedGiftInfo:false});
   connection.on("gift",data=>{
     if(data.giftType===1 && !data.repeatEnd) return;
     emitRoom(key,"tiktok_gift",{user:{uniqueId:data.uniqueId,nickname:data.nickname||data.uniqueId,profilePictureUrl:data.profilePictureUrl||""},giftId:data.giftId,giftName:data.giftName,giftValue:Number(data.diamondCount||0)*Math.max(1,Number(data.repeatCount||1)),repeatCount:Number(data.repeatCount||1),timestamp:Date.now()});
