@@ -93,17 +93,17 @@ async function connectTikTok(username){
     const incoming=Math.max(0,Number(data.likeCount||0));
     if(!uniqueId || incoming<=0) return;
     const bucketKey=key+":"+uniqueId;
-    const total=(likeBuckets.get(bucketKey)||0)+incoming;
-    const previousHundreds=Math.floor(total/100);
     const previousTotal=likeTotals.get(bucketKey)||0;
     const newTotal=previousTotal+incoming;
+    const previousHundreds=Math.floor(previousTotal/100);
     const newHundreds=Math.floor(newTotal/100);
-    likeBuckets.set(bucketKey,total%100);
     likeTotals.set(bucketKey,newTotal);
-    if(newHundreds>previousHundreds){
+    likeBuckets.set(bucketKey,newTotal%100);
+    const newMilestones=newHundreds-previousHundreds;
+    if(newMilestones>0){
       emitRoom(key,"tiktok_like",{
         user:{uniqueId,nickname,profilePictureUrl},
-        likeCount:(newHundreds-previousHundreds)*100,
+        likeCount:newMilestones*100,
         totalLikeCount:newTotal,
         timestamp:Date.now()
       });
