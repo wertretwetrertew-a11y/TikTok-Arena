@@ -17,7 +17,7 @@ try {
   New-Item -ItemType Directory -Path $Temp -Force | Out-Null
 
   $cacheBust = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
-  $download = "https://codeload.github.com/$Repo/zip/refs/heads/$Branch?cacheBust=$cacheBust"
+  $download = "https://github.com/$Repo/archive/refs/heads/$Branch.zip?cacheBust=$cacheBust"
 
   Write-Host "Downloading the latest game from GitHub..."
   Invoke-WebRequest -Uri $download -OutFile $Zip -UseBasicParsing
