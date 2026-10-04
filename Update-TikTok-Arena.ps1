@@ -16,7 +16,7 @@ try {
   if (Test-Path $Temp) { Remove-Item $Temp -Recurse -Force -ErrorAction SilentlyContinue }
   New-Item -ItemType Directory -Path $Temp | Out-Null
 
-  $api = "https://api.github.com/repos/$Repo/commits/$Branch"
+  $api = "https://api.github.com/repos/$Repo/commits/$Branch?cacheBust=$([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())"
   Write-Host "Checking GitHub for updates..."
   $remote = Invoke-RestMethod -Uri $api -UseBasicParsing
   $remoteSha = $remote.sha
@@ -31,7 +31,7 @@ try {
     Write-Host "New version found: $($remoteSha.Substring(0,7))"
     Write-Host "Downloading latest version..."
 
-    $download = "https://github.com/$Repo/archive/refs/heads/$Branch.zip"
+    $download = "https://github.com/$Repo/archive/refs/heads/$Branch.zip?cacheBust=$([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())"
     Invoke-WebRequest -Uri $download -OutFile $Zip -UseBasicParsing
 
     Expand-Archive -Path $Zip -DestinationPath $Extract -Force
@@ -44,6 +44,10 @@ try {
         Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $Root $_.Name) -Recurse -Force
       }
     }
+
+    # Always refresh the critical server entrypoint directly from the exact GitHub commit.
+    $serverUrl = "https://raw.githubusercontent.com/$Repo/$remoteSha/server.js?cacheBust=$([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())"
+    Invoke-WebRequest -Uri $serverUrl -OutFile (Join-Path $Root "server.js") -UseBasicParsing
 
     Set-Content -LiteralPath $localShaFile -Value $remoteSha -NoNewline
     Write-Host "Update installed."
