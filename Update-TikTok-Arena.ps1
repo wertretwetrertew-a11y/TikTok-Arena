@@ -77,7 +77,10 @@ try {
   Write-Host "http://localhost:3000"
   Write-Host ""
 
-  $serverProcess = Start-Process -FilePath "cmd.exe" -ArgumentList "/c","set BUILD_VERSION=$remoteSha&& npm start" -WorkingDirectory $Root -WindowStyle Normal -PassThru
+  $env:BUILD_VERSION = $remoteSha
+  $serverLog = Join-Path $Root "tiktok-arena-server.log"
+  if (Test-Path $serverLog) { Remove-Item $serverLog -Force -ErrorAction SilentlyContinue }
+  $serverProcess = Start-Process -FilePath "node.exe" -ArgumentList "server.js" -WorkingDirectory $Root -WindowStyle Normal -RedirectStandardOutput $serverLog -RedirectStandardError $serverLog -PassThru
 
   Write-Host "Waiting for the server to become ready..."
   $ready = $false
@@ -93,7 +96,10 @@ try {
   }
 
   if (-not $ready) {
-    throw "TikTok Arena server did not become ready at http://localhost:3000"
+    $details = ""
+    if (Test-Path $serverLog) { $details = (Get-Content $serverLog -Raw -ErrorAction SilentlyContinue) }
+    if ([string]::IsNullOrWhiteSpace($details)) { $details = "Node server produced no log output." }
+    throw "TikTok Arena server did not become ready at http://localhost:3000`n`nSERVER LOG:`n$details"
   }
 
   Write-Host "Server is ready. Opening the updated game in your browser..."
