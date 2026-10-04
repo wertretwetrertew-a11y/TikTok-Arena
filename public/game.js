@@ -297,4 +297,5 @@ function frame(now){
 }
 
 renderLeaderboard();
+fetch("/api/health").then(function(r){return r.json();}).then(function(d){var el=document.getElementById("buildVersion");if(el) el.textContent=d.version||"dev";}).catch(function(){});
 requestAnimationFrame(frame);
